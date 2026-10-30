@@ -1,0 +1,57 @@
+{
+  "_doc": "Threshold reachability snapshot, captured by the source system's reachability harness (not included; it needs the original database). Each row runs the PRODUCTION comparison (same pairing, same text shapes the real call path uses) over the local corpus and reports count(rows >= threshold) + observed max. FAIL = 0 rows ever cross it (dead code that looks healthy). WARN = observed max within ~0.02 of the threshold (nearly dead).",
+  "captured_at": "2026-07-18T11:47:59.272541+00:00",
+  "n_pitches": 6,
+  "rows": [
+    {
+      "name": "PORTFOLIO_SEMANTIC_CONFLICT_THRESHOLD",
+      "threshold": 0.8,
+      "count_at_or_above": 0,
+      "observed_max": 0.7332367897033691,
+      "n_total": 170088,
+      "comparison": "6 golden pitch descriptions x pgv_portfolio_companies.embedding (QA-clean, corpus-wide)",
+      "note": "Source-system config — drives the -20% penalty + 'direct competitor' narrative.",
+      "verdict": "FAIL"
+    },
+    {
+      "name": "PORTFOLIO_SEMANTIC_ADJACENT_THRESHOLD",
+      "threshold": 0.75,
+      "count_at_or_above": 0,
+      "observed_max": 0.7332367897033691,
+      "n_total": 170088,
+      "comparison": "6 golden pitch descriptions x pgv_portfolio_companies.embedding (QA-clean, corpus-wide)",
+      "note": "Source-system config — informational 'thematically adjacent' tier, no penalty.",
+      "verdict": "FAIL"
+    },
+    {
+      "name": "_COMPETITIVE_SIM_THRESHOLD",
+      "threshold": 0.78,
+      "count_at_or_above": 0,
+      "observed_max": 0.7502397333850097,
+      "n_total": 8160,
+      "comparison": "6 golden pitch descriptions x pgv_firm_thesis_clusters.centroid (uses production's strict '>' operator, not '>=')",
+      "note": "Function-local constant in the source system's query layer.",
+      "verdict": "FAIL"
+    },
+    {
+      "name": "M14_EMBEDDING_CLUSTER_THRESHOLD",
+      "threshold": 0.85,
+      "count_at_or_above": 6859,
+      "observed_max": 1.0,
+      "n_total": 27305,
+      "comparison": "all intra-firm article pairs, pgv_news_articles.embedding (company_mentioned guard applied)",
+      "note": "Source-system config — news event de-duplication.",
+      "verdict": "PASS"
+    },
+    {
+      "name": "_CADENCE_COVERAGE_FLOOR",
+      "threshold": 0.5,
+      "count_at_or_above": 184,
+      "observed_max": 1.0,
+      "n_total": 862,
+      "comparison": "per-firm dated/total ratio, all firms with >=1 QA-clean portfolio row",
+      "note": "Source-system firm-watch module — coverage ratio, not a cosine similarity.",
+      "verdict": "PASS"
+    }
+  ]
+}

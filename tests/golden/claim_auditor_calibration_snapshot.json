@@ -1,0 +1,341 @@
+{
+  "n_fixtures": 57,
+  "fp_rate_threshold": 0.15,
+  "recall_floor": 0.8,
+  "fabricated_false_positive_rate": 0.0,
+  "fabricated_recall": 1.0,
+  "confusion_matrix": {
+    "verified": {
+      "verified": 20,
+      "unverifiable": 0,
+      "fabricated": 0,
+      "no_claim": 0
+    },
+    "fair_inference": {
+      "verified": 7,
+      "unverifiable": 11,
+      "fabricated": 0,
+      "no_claim": 0
+    },
+    "fabricated": {
+      "verified": 0,
+      "unverifiable": 0,
+      "fabricated": 19,
+      "no_claim": 0
+    }
+  },
+  "per_verdict_precision_recall": {
+    "verified": {
+      "precision": 0.7407407407407407,
+      "recall": 1.0,
+      "tp": 20,
+      "fp": 7,
+      "fn": 0
+    },
+    "unverifiable": {
+      "precision": 1.0,
+      "recall": 0.6111111111111112,
+      "tp": 11,
+      "fp": 0,
+      "fn": 7
+    },
+    "fabricated": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "tp": 19,
+      "fp": 0,
+      "fn": 0
+    }
+  },
+  "false_positive_fixtures": [],
+  "no_claim_fixtures": [],
+  "per_fixture": [
+    {
+      "id": "q_verified_qphox",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_chiral",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_partner_focus",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_geo",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_stage",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_fund_news",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_coinvestor",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_recent_deal",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_verified_timing",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_verified_vow",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_verified_tastewise",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_verified_fund",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "i_verified_360",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "i_verified_geo",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_fair_thesis_deeptech",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "q_fair_value_add",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "q_fair_sector_adjacent",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "q_fair_fund_focus",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "p_fair_focus_foodtech",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_fair_check_inferred",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "p_fair_stage_inferred",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "p_fair_geo_inferred",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_fair_timing_inferred",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "p_fair_value_add",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "p_fair_mission",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "i_fair_partner_focus",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "i_fair_exit_thesis",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "i_fair_check_inferred",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "i_fair_consumer_focus",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "i_fair_network",
+      "label": "fair_inference",
+      "effective_verdict": "unverifiable"
+    },
+    {
+      "id": "q_fab_openai",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "q_fab_fund_size",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "q_fab_partner",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "q_fab_us_hq",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "q_fab_ipo",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_spacex",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_check",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_stage",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_aum",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "i_fab_stripe",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "i_fab_partner_role",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "i_fab_geo",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_geo_absent_field",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_stage_absent_field",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "p_fab_check_hedged_specific",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "cp_verified_customer_segment",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "cp_verified_gtm",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "cp_verified_business_model",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "cp_fair_count",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "cp_fab_wrong_segment",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "te_fab_actively_deploying",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "te_fab_90d_sectors",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    },
+    {
+      "id": "te_verified_cold_count",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "te_fair_quiet",
+      "label": "fair_inference",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "fa_verified_focus_area_exact",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "fa_verified_focus_area_subset",
+      "label": "verified",
+      "effective_verdict": "verified"
+    },
+    {
+      "id": "fa_fab_focus_area_absent",
+      "label": "fabricated",
+      "effective_verdict": "fabricated"
+    }
+  ],
+  "captured_at": "2026-07-17",
+  "model": "gemini-2.5-flash"
+}

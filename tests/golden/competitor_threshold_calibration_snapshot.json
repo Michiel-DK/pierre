@@ -1,0 +1,785 @@
+{
+  "_doc": "Pitch-to-company cosine-similarity calibration for the semantic-competitor threshold. Positives = real public portfolio companies known to be direct competitors of a generic sector pitch written for this harness. Negatives = real public portfolio companies from other verticals (easy = unrelated business, hard = same broad category, different specific vertical). Company embeddings are the source system's stored portfolio-company vectors (RETRIEVAL_DOCUMENT) against embed_query(pitch) (RETRIEVAL_QUERY), the production task-type pairing. Some rows were removed after capture; every aggregate is recomputed from the rows stored here (tests/unit/test_competitor_threshold_calibration_snapshot.py pins that).",
+  "captured_at": "2026-07-18T11:40:25.446040+00:00",
+  "cases": [
+    {
+      "pitch_id": "cross_border_b2b_payments",
+      "pitch_text": "API-first cross-border B2B payments rail enabling businesses to send and receive international payments without correspondent banking friction. We provide multi-currency accounts, FX conversion, and payment-orchestration APIs for platforms and marketplaces that need to move money across borders at lower cost and faster settlement than traditional wire transfers.",
+      "positive_matches": [
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "anthemis",
+          "similarity": 0.6722
+        },
+        {
+          "company_name": "Payoneer",
+          "firm_slug": "susquehanna_growth_equity",
+          "similarity": 0.6718
+        },
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "notion_capital",
+          "similarity": 0.6634
+        },
+        {
+          "company_name": "Airwallex",
+          "firm_slug": "salesforce_ventures",
+          "similarity": 0.6457
+        },
+        {
+          "company_name": "Airwallex",
+          "firm_slug": "horizons_ventures",
+          "similarity": 0.6457
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "seedcamp",
+          "similarity": 0.6268
+        },
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "sapphire_ventures",
+          "similarity": 0.6138
+        },
+        {
+          "company_name": "Railsr",
+          "firm_slug": "moneta_venture_capital",
+          "similarity": 0.6111
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "index_ventures",
+          "similarity": 0.6049
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "cdp_venture_capital_sgr",
+          "similarity": 0.5661
+        }
+      ],
+      "negative_easy_matches": [
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "good_startup",
+          "similarity": 0.5293
+        },
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "joyance_partners",
+          "similarity": 0.5175
+        },
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "big_idea_ventures",
+          "similarity": 0.5169
+        },
+        {
+          "company_name": "BIOCRAFT",
+          "firm_slug": "tilia_impact_ventures",
+          "similarity": 0.5163
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "lever_vc",
+          "similarity": 0.5119
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "agronomics",
+          "similarity": 0.5103
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "iselect_fund",
+          "similarity": 0.5025
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "blue_horizon",
+          "similarity": 0.4957
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "collateral_good",
+          "similarity": 0.494
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "invest_nl",
+          "similarity": 0.4908
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "stray_dog_capital",
+          "similarity": 0.4823
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "agronomics",
+          "similarity": 0.4808
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "veginvest",
+          "similarity": 0.4798
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "m_ventures",
+          "similarity": 0.4728
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "unovis_asset_management",
+          "similarity": 0.4655
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "thia_ventures",
+          "similarity": 0.4537
+        }
+      ],
+      "negative_hard_matches": [
+        {
+          "company_name": "wefox",
+          "firm_slug": "horizons_ventures",
+          "similarity": 0.5648
+        },
+        {
+          "company_name": "Wefox",
+          "firm_slug": "seedcamp",
+          "similarity": 0.5567
+        },
+        {
+          "company_name": "WeFox",
+          "firm_slug": "eurazeo_venture_uk_vc",
+          "similarity": 0.5316
+        },
+        {
+          "company_name": "wefox",
+          "firm_slug": "isomer",
+          "similarity": 0.5255
+        },
+        {
+          "company_name": "WeFox",
+          "firm_slug": "eurazeo",
+          "similarity": 0.5252
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "468_capital",
+          "similarity": 0.5201
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "capnamic_ventures",
+          "similarity": 0.5175
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "acton_capital",
+          "similarity": 0.499
+        },
+        {
+          "company_name": "GetSafe",
+          "firm_slug": "econa_ag",
+          "similarity": 0.4989
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "earlybird_venture_capital",
+          "similarity": 0.4867
+        }
+      ],
+      "positive_company_names_requested": [
+        "Currencycloud",
+        "Wise",
+        "Airwallex",
+        "Payoneer",
+        "Railsr"
+      ],
+      "positive_rows_found": 10,
+      "negative_easy_rows_found": 16,
+      "negative_hard_rows_found": 10,
+      "well_described_positive_rows_found": 7,
+      "well_described_negative_rows_found": 25,
+      "zero_fp_floor_this_case": {
+        "floor": 0.5648,
+        "threshold": 0.5658,
+        "recall": 1.0,
+        "n_positives": 10,
+        "n_negatives": 26,
+        "positives_retained": 10,
+        "positives_missed": 0
+      }
+    },
+    {
+      "pitch_id": "embedded_insurance",
+      "pitch_text": "We are a digital-first embedded insurance platform offering renters, household, and liability coverage through API integrations with partner apps and marketplaces. Customers get instant underwriting decisions, fully digital claims handling, and usage-based pricing — replacing legacy broker-distributed insurance products with a mobile-native, API-embeddable experience.",
+      "positive_matches": [
+        {
+          "company_name": "Wefox",
+          "firm_slug": "seedcamp",
+          "similarity": 0.6733
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "capnamic_ventures",
+          "similarity": 0.6668
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "468_capital",
+          "similarity": 0.6659
+        },
+        {
+          "company_name": "wefox",
+          "firm_slug": "horizons_ventures",
+          "similarity": 0.6615
+        },
+        {
+          "company_name": "wefox",
+          "firm_slug": "isomer",
+          "similarity": 0.6408
+        },
+        {
+          "company_name": "GetSafe",
+          "firm_slug": "econa_ag",
+          "similarity": 0.6399
+        },
+        {
+          "company_name": "WeFox",
+          "firm_slug": "eurazeo_venture_uk_vc",
+          "similarity": 0.6286
+        },
+        {
+          "company_name": "WeFox",
+          "firm_slug": "eurazeo",
+          "similarity": 0.6276
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "acton_capital",
+          "similarity": 0.6269
+        },
+        {
+          "company_name": "Getsafe",
+          "firm_slug": "earlybird_venture_capital",
+          "similarity": 0.6237
+        }
+      ],
+      "negative_easy_matches": [
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "good_startup",
+          "similarity": 0.5572
+        },
+        {
+          "company_name": "BIOCRAFT",
+          "firm_slug": "tilia_impact_ventures",
+          "similarity": 0.5441
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "agronomics",
+          "similarity": 0.5402
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "iselect_fund",
+          "similarity": 0.5355
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "lever_vc",
+          "similarity": 0.5304
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "blue_horizon",
+          "similarity": 0.527
+        },
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "joyance_partners",
+          "similarity": 0.5264
+        },
+        {
+          "company_name": "Novel Farms",
+          "firm_slug": "big_idea_ventures",
+          "similarity": 0.5194
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "m_ventures",
+          "similarity": 0.5038
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "collateral_good",
+          "similarity": 0.5023
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "veginvest",
+          "similarity": 0.5
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "agronomics",
+          "similarity": 0.4981
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "invest_nl",
+          "similarity": 0.4944
+        },
+        {
+          "company_name": "Bond Pet Foods",
+          "firm_slug": "thia_ventures",
+          "similarity": 0.4928
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "unovis_asset_management",
+          "similarity": 0.4758
+        },
+        {
+          "company_name": "Mosa Meat",
+          "firm_slug": "stray_dog_capital",
+          "similarity": 0.4752
+        }
+      ],
+      "negative_hard_matches": [
+        {
+          "company_name": "Railsr",
+          "firm_slug": "moneta_venture_capital",
+          "similarity": 0.607
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "index_ventures",
+          "similarity": 0.5777
+        },
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "anthemis",
+          "similarity": 0.573
+        },
+        {
+          "company_name": "Airwallex",
+          "firm_slug": "salesforce_ventures",
+          "similarity": 0.5716
+        },
+        {
+          "company_name": "Airwallex",
+          "firm_slug": "horizons_ventures",
+          "similarity": 0.5716
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "seedcamp",
+          "similarity": 0.5639
+        },
+        {
+          "company_name": "Wise",
+          "firm_slug": "cdp_venture_capital_sgr",
+          "similarity": 0.563
+        },
+        {
+          "company_name": "Payoneer",
+          "firm_slug": "susquehanna_growth_equity",
+          "similarity": 0.5604
+        },
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "notion_capital",
+          "similarity": 0.554
+        },
+        {
+          "company_name": "Currencycloud",
+          "firm_slug": "sapphire_ventures",
+          "similarity": 0.5418
+        }
+      ],
+      "positive_company_names_requested": [
+        "Getsafe",
+        "GetSafe",
+        "WeFox",
+        "wefox"
+      ],
+      "positive_rows_found": 10,
+      "negative_easy_rows_found": 16,
+      "negative_hard_rows_found": 10,
+      "well_described_positive_rows_found": 9,
+      "well_described_negative_rows_found": 23,
+      "zero_fp_floor_this_case": {
+        "floor": 0.607,
+        "threshold": 0.608,
+        "recall": 1.0,
+        "n_positives": 10,
+        "n_negatives": 26,
+        "positives_retained": 10,
+        "positives_missed": 0
+      }
+    }
+  ],
+  "overall_separation_vs_all_negatives": {
+    "positive_stats": {
+      "n": 20,
+      "mean": 0.638825,
+      "median": 0.64035,
+      "min": 0.5661,
+      "max": 0.6733,
+      "stdev": 0.027114550982821003,
+      "p5": 0.6049,
+      "p25": 0.6268,
+      "p75": 0.6634,
+      "p95": 0.6722
+    },
+    "negative_stats": {
+      "n": 52,
+      "mean": 0.5202442307692308,
+      "median": 0.5175,
+      "min": 0.4537,
+      "max": 0.607,
+      "stdev": 0.03342832984082132,
+      "p5": 0.4752,
+      "p25": 0.4957,
+      "p75": 0.5418,
+      "p95": 0.5716
+    },
+    "clean_separation": false,
+    "gap": -0.040899999999999936,
+    "candidate_threshold": 0.6049,
+    "false_positives_at_candidate": 1,
+    "false_negatives_at_candidate": 1,
+    "zero_fp": {
+      "floor": 0.607,
+      "threshold": 0.608,
+      "recall": 0.9,
+      "n_positives": 20,
+      "n_negatives": 52,
+      "positives_retained": 18,
+      "positives_missed": 2
+    },
+    "reason": "positive and negative distributions overlap — no threshold separates them cleanly"
+  },
+  "separation_vs_hard_negatives_only": {
+    "positive_stats": {
+      "n": 20,
+      "mean": 0.638825,
+      "median": 0.64035,
+      "min": 0.5661,
+      "max": 0.6733,
+      "stdev": 0.027114550982821003,
+      "p5": 0.6049,
+      "p25": 0.6268,
+      "p75": 0.6634,
+      "p95": 0.6722
+    },
+    "negative_stats": {
+      "n": 20,
+      "mean": 0.5455,
+      "median": 0.55535,
+      "min": 0.4867,
+      "max": 0.607,
+      "stdev": 0.030507507272800896,
+      "p5": 0.4989,
+      "p25": 0.5252,
+      "p75": 0.5648,
+      "p95": 0.5777
+    },
+    "clean_separation": false,
+    "gap": -0.040899999999999936,
+    "candidate_threshold": 0.6111,
+    "false_positives_at_candidate": 0,
+    "false_negatives_at_candidate": 2,
+    "zero_fp": {
+      "floor": 0.607,
+      "threshold": 0.608,
+      "recall": 0.9,
+      "n_positives": 20,
+      "n_negatives": 20,
+      "positives_retained": 18,
+      "positives_missed": 2
+    },
+    "reason": "positive and negative distributions overlap — no threshold separates them cleanly"
+  },
+  "separation_vs_easy_negatives_only": {
+    "positive_stats": {
+      "n": 20,
+      "mean": 0.638825,
+      "median": 0.64035,
+      "min": 0.5661,
+      "max": 0.6733,
+      "stdev": 0.027114550982821003,
+      "p5": 0.6049,
+      "p25": 0.6268,
+      "p75": 0.6634,
+      "p95": 0.6722
+    },
+    "negative_stats": {
+      "n": 32,
+      "mean": 0.504459375,
+      "median": 0.5024,
+      "min": 0.4537,
+      "max": 0.5572,
+      "stdev": 0.024214637352423327,
+      "p5": 0.4728,
+      "p25": 0.4908,
+      "p75": 0.5194,
+      "p95": 0.5402
+    },
+    "clean_separation": true,
+    "gap": 0.008900000000000019,
+    "candidate_threshold": 0.56165,
+    "false_positives_at_candidate": 0,
+    "false_negatives_at_candidate": 0,
+    "zero_fp": {
+      "floor": 0.5572,
+      "threshold": 0.5582,
+      "recall": 1.0,
+      "n_positives": 20,
+      "n_negatives": 32,
+      "positives_retained": 20,
+      "positives_missed": 0
+    },
+    "reason": "min(positives) > max(negatives) — clean band exists"
+  },
+  "candidate_pool_flood_check": {
+    "n_results": 20,
+    "thresholds_swept": [
+      0.6,
+      0.62,
+      0.65,
+      0.68,
+      0.7,
+      0.72
+    ],
+    "per_pitch": [
+      {
+        "pitch_id": "healthtech_seed_eu",
+        "pitch_text": "AI-native clinical documentation platform for hospitals. Our software listens to doctor-patient conversations and auto-generates structured medical notes, cutting physician documentation time and burnout. B2B SaaS sold to European hospital systems.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 17,
+            "conflict_flagged_pct": 0.85,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 12,
+            "conflict_flagged_pct": 0.6,
+            "adjacent_only_firms": 5
+          },
+          "0.65": {
+            "conflict_flagged_firms": 4,
+            "conflict_flagged_pct": 0.2,
+            "adjacent_only_firms": 13
+          },
+          "0.68": {
+            "conflict_flagged_firms": 2,
+            "conflict_flagged_pct": 0.1,
+            "adjacent_only_firms": 15
+          },
+          "0.7": {
+            "conflict_flagged_firms": 1,
+            "conflict_flagged_pct": 0.05,
+            "adjacent_only_firms": 16
+          },
+          "0.72": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 17
+          }
+        }
+      },
+      {
+        "pitch_id": "fintech_seriesa_uk",
+        "pitch_text": "Embedded payments infrastructure that lets vertical SaaS platforms add card issuing, accounts and payouts via a single API. Series A, UK-based, selling to mid-market software companies across Europe.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 19,
+            "conflict_flagged_pct": 0.95,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 19,
+            "conflict_flagged_pct": 0.95,
+            "adjacent_only_firms": 0
+          },
+          "0.65": {
+            "conflict_flagged_firms": 11,
+            "conflict_flagged_pct": 0.55,
+            "adjacent_only_firms": 8
+          },
+          "0.68": {
+            "conflict_flagged_firms": 3,
+            "conflict_flagged_pct": 0.15,
+            "adjacent_only_firms": 16
+          },
+          "0.7": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 19
+          },
+          "0.72": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 19
+          }
+        }
+      },
+      {
+        "pitch_id": "climate_deeptech_seed",
+        "pitch_text": "Direct-air-capture hardware that removes CO2 from ambient air using a novel low-energy sorbent. Capital-intensive climate deeptech, building pilot plants. Seed stage, Europe.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 20,
+            "conflict_flagged_pct": 1.0,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 15,
+            "conflict_flagged_pct": 0.75,
+            "adjacent_only_firms": 5
+          },
+          "0.65": {
+            "conflict_flagged_firms": 11,
+            "conflict_flagged_pct": 0.55,
+            "adjacent_only_firms": 9
+          },
+          "0.68": {
+            "conflict_flagged_firms": 7,
+            "conflict_flagged_pct": 0.35,
+            "adjacent_only_firms": 13
+          },
+          "0.7": {
+            "conflict_flagged_firms": 3,
+            "conflict_flagged_pct": 0.15,
+            "adjacent_only_firms": 17
+          },
+          "0.72": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 20
+          }
+        }
+      },
+      {
+        "pitch_id": "consumer_marketplace_seed",
+        "pitch_text": "Mobile-first marketplace connecting local independent restaurants with home cooks for authentic regional meals. B2C consumer marketplace, Seed stage, based in France.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 14,
+            "conflict_flagged_pct": 0.7,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 9,
+            "conflict_flagged_pct": 0.45,
+            "adjacent_only_firms": 5
+          },
+          "0.65": {
+            "conflict_flagged_firms": 5,
+            "conflict_flagged_pct": 0.25,
+            "adjacent_only_firms": 9
+          },
+          "0.68": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 14
+          },
+          "0.7": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 14
+          },
+          "0.72": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 14
+          }
+        }
+      },
+      {
+        "pitch_id": "biotech_seriesb",
+        "pitch_text": "Clinical-stage biotech developing an mRNA therapeutics platform for autoimmune disease. Series B, deep life-sciences, Europe.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 19,
+            "conflict_flagged_pct": 0.95,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 18,
+            "conflict_flagged_pct": 0.9,
+            "adjacent_only_firms": 1
+          },
+          "0.65": {
+            "conflict_flagged_firms": 11,
+            "conflict_flagged_pct": 0.55,
+            "adjacent_only_firms": 8
+          },
+          "0.68": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 19
+          },
+          "0.7": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 19
+          },
+          "0.72": {
+            "conflict_flagged_firms": 0,
+            "conflict_flagged_pct": 0.0,
+            "adjacent_only_firms": 19
+          }
+        }
+      },
+      {
+        "pitch_id": "space_hardware_seed",
+        "pitch_text": "In-orbit satellite servicing — autonomous spacecraft that refuel and reposition aging satellites to extend their life. Capital-intensive space hardware, Seed stage, Europe.",
+        "n_candidates": 20,
+        "by_threshold": {
+          "0.6": {
+            "conflict_flagged_firms": 18,
+            "conflict_flagged_pct": 0.9,
+            "adjacent_only_firms": 0
+          },
+          "0.62": {
+            "conflict_flagged_firms": 16,
+            "conflict_flagged_pct": 0.8,
+            "adjacent_only_firms": 2
+          },
+          "0.65": {
+            "conflict_flagged_firms": 12,
+            "conflict_flagged_pct": 0.6,
+            "adjacent_only_firms": 6
+          },
+          "0.68": {
+            "conflict_flagged_firms": 6,
+            "conflict_flagged_pct": 0.3,
+            "adjacent_only_firms": 12
+          },
+          "0.7": {
+            "conflict_flagged_firms": 3,
+            "conflict_flagged_pct": 0.15,
+            "adjacent_only_firms": 15
+          },
+          "0.72": {
+            "conflict_flagged_firms": 2,
+            "conflict_flagged_pct": 0.1,
+            "adjacent_only_firms": 16
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,636 @@
+{
+  "_doc": "Golden fixtures for the OFFLINE claim-auditor calibration harness. Each fixture is a SINGLE factual claim (one sentence) paired with a FROZEN context dict (keyed by context_id under `contexts`) and a hand-assigned ground-truth `label` (verified / fair_inference / fabricated). The harness runs `audit_report_claims(claim, context)` per fixture, reduces the auditor's (possibly multiple) sub-claim verdicts to one EFFECTIVE verdict via the most-severe rule (fabricated > unverifiable > verified), and compares to the label. Contexts are FROZEN inline (captured once from real firms in the source system's database, then committed) so the FP-rate is attributable to AUDITOR changes alone, never database drift (unlike a match-ranking harness, which re-derives against the live corpus by design). Contexts vary in richness ON PURPOSE: `quantonation_rich` grounds verified claims; `peakbridge_thin` (portfolio+one-fund-news only, NO partner/geo/check/timing) and `isai_exits` (empty partner focus_sectors) are the fair-inference DANGER zone that replicates the 4/5-false-fabricated shapes seen in an earlier live check. label vocabulary: verified=fact is in the corpus (expect auditor `verified`); fair_inference=derivable/reasonable, no direct evidence (expect `unverifiable`; a `verified` upgrade is ACCEPTABLE — both survive softening; ONLY `fabricated` is a failure); fabricated=invents/contradicts a name or number (expect `fabricated`, should be stripped). The frozen contexts are a snapshot of data scraped about real, public VC firms, used only as test input: they are not checked or asserted as true about those firms.",
+  "headline_metric": "fabricated_false_positive_rate = of fixtures labeled verified|fair_inference (should survive softening), fraction the auditor effectively flagged `fabricated` (would be stripped). Lower is better. This is the operator's standing concern made into a number.",
+  "fp_rate_threshold": 0.15,
+  "recall_floor": 0.8,
+  "contexts": {
+    "quantonation_rich": {
+      "portfolio_companies": [
+        {
+          "name": "QphoX",
+          "description": "Quantum photonics interconnect for the quantum internet",
+          "sector": "Quantum"
+        },
+        {
+          "name": "Tau Systems",
+          "description": "Ultrafast laser-driven accelerator systems",
+          "sector": "Deeptech"
+        },
+        {
+          "name": "Quantum Signals",
+          "description": "Quantum sensing and signal processing",
+          "sector": "Quantum"
+        },
+        {
+          "name": "QC Design",
+          "description": "Fault-tolerant quantum error-correction software",
+          "sector": "Quantum"
+        },
+        {
+          "name": "Chiral",
+          "description": "Swiss nanomaterials for next-gen electronics",
+          "sector": "Deeptech"
+        },
+        {
+          "name": "PrediQT Technologies",
+          "description": "Computational physics simulation",
+          "sector": "Deeptech"
+        }
+      ],
+      "partners": [
+        {
+          "name": "Christophe Jurczak",
+          "role": "Managing Partner",
+          "focus_sectors": [
+            "Quantum",
+            "Deeptech"
+          ]
+        }
+      ],
+      "news_articles": [
+        {
+          "title": "Quantonation closes new €220m fund as interest in quantum surges",
+          "intel_category": "fund_announcement"
+        }
+      ],
+      "co_investors": [
+        {
+          "name": "Toshiba"
+        }
+      ],
+      "firm_geography": [
+        "Europe",
+        "France"
+      ],
+      "firm_stages": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "firm_check_size": {
+        "minimum": "€500K",
+        "maximum": "€3M",
+        "typical": "€1.5M",
+        "news_derived_band": "€1-3M"
+      },
+      "recent_deals": [
+        {
+          "title": "Quantonation backs QphoX in seed round",
+          "company_mentioned": "QphoX",
+          "intel_category": "investment"
+        }
+      ],
+      "timing_metrics": {
+        "thesis_temperature": "hot",
+        "invest_count_90d": 4,
+        "invest_count_365d": 12
+      }
+    },
+    "peakbridge_thin": {
+      "portfolio_companies": [
+        {
+          "name": "Tastewise",
+          "description": "GenAI platform for food and beverage brands",
+          "sector": "FoodTech"
+        },
+        {
+          "name": "Standing Ovation",
+          "description": "Animal-free casein proteins",
+          "sector": "FoodTech"
+        },
+        {
+          "name": "Kern Tec",
+          "description": "Plant-based ingredients upcycled from fruit stones",
+          "sector": "FoodTech"
+        },
+        {
+          "name": "Vow",
+          "description": "Cultured (lab-grown) meat",
+          "sector": "FoodTech"
+        },
+        {
+          "name": "Win-Win",
+          "description": "Cocoa-free chocolate",
+          "sector": "FoodTech"
+        },
+        {
+          "name": "Rival Foods",
+          "description": "Whole-cut plant-based meat",
+          "sector": "FoodTech"
+        }
+      ],
+      "news_articles": [
+        {
+          "title": "PeakBridge Growth Fund raises $187 million to bring technology to food",
+          "intel_category": "fund_announcement"
+        }
+      ],
+      "firm_geography": [
+        "Israel",
+        "Europe"
+      ],
+      "firm_stages": [],
+      "firm_focus_areas": [
+        "FoodTech",
+        "AgriTech"
+      ]
+    },
+    "isai_exits": {
+      "portfolio_companies": [
+        {
+          "name": "Teemo",
+          "description": "Location-intelligence platform; acquired by Near",
+          "sector": "AdTech"
+        },
+        {
+          "name": "LiveMentor",
+          "description": "Online education for entrepreneurs",
+          "sector": "EdTech"
+        },
+        {
+          "name": "Monbanquet",
+          "description": "B2B catering; acquired",
+          "sector": "Food"
+        },
+        {
+          "name": "Shopmium",
+          "description": "Consumer cashback app; acquired by Quotient",
+          "sector": "Consumer"
+        },
+        {
+          "name": "Stickyads",
+          "description": "Video advertising tech; acquired by Comcast for over $100M",
+          "sector": "AdTech"
+        },
+        {
+          "name": "360Learning",
+          "description": "Collaborative learning SaaS platform",
+          "sector": "SaaS"
+        }
+      ],
+      "partners": [
+        {
+          "name": "Jean-David Chamboredon",
+          "role": "",
+          "focus_sectors": []
+        },
+        {
+          "name": "François Collet",
+          "role": "",
+          "focus_sectors": []
+        }
+      ],
+      "firm_geography": [
+        "France",
+        "Europe"
+      ],
+      "firm_stages": [
+        "Seed",
+        "Series A"
+      ],
+      "co_investors": []
+    },
+    "cluster_patterns_b2b": {
+      "_doc": "Frozen context for cluster-pattern projection fixtures. Portfolio of B2B enterprise SaaS companies with cluster-pattern analysis for business_model / gtm_approach / customer_segment. Claims grounded against dominant_pattern tokens (b2b_enterprise, enterprise_sales, platform). Verbatim fixture seeds from an earlier measurement of auditor verdicts.",
+      "portfolio_companies": [
+        {
+          "name": "DataGrail",
+          "description": "Enterprise data privacy platform for compliance teams",
+          "sector": "SaaS"
+        },
+        {
+          "name": "Pigment",
+          "description": "Business planning platform for enterprise finance and revenue teams",
+          "sector": "SaaS"
+        },
+        {
+          "name": "Toucan Toco",
+          "description": "Embedded analytics and data storytelling for enterprise SaaS products",
+          "sector": "Analytics"
+        },
+        {
+          "name": "Hyperline",
+          "description": "Revenue operations and billing platform for B2B SaaS companies",
+          "sector": "SaaS"
+        },
+        {
+          "name": "Leeway",
+          "description": "Contract lifecycle management and compliance SaaS for enterprise teams",
+          "sector": "SaaS"
+        }
+      ],
+      "cluster_patterns": {
+        "business_model": {
+          "dominant_pattern": "platform",
+          "count": "5",
+          "prevalence": 0.71,
+          "severity": "MODERATE",
+          "startup_matches": true
+        },
+        "gtm_approach": {
+          "dominant_pattern": "enterprise_sales",
+          "count": "5",
+          "prevalence": 0.71,
+          "severity": "MODERATE",
+          "startup_matches": true
+        },
+        "customer_segment": {
+          "dominant_pattern": "b2b_enterprise",
+          "count": "13",
+          "prevalence": 0.81,
+          "severity": "STRONG",
+          "startup_matches": true
+        }
+      }
+    },
+    "timing_editorializing_cold": {
+      "_doc": "Frozen context for timing-editorializing fixtures. timing_metrics shows invest_count_90d=0, thesis_temperature=cold. A narrative claiming 'actively deploying capital' (contradicts cold temp) or inventing specific sectors for 'last 90-day investments' (contradicts invest_count_90d=0 and named sectors absent from SaaS portfolio) should be fabricated. Stating the raw zero count is verified.",
+      "portfolio_companies": [
+        {
+          "name": "DataGrail",
+          "description": "Enterprise data privacy platform for compliance teams",
+          "sector": "SaaS"
+        },
+        {
+          "name": "Pigment",
+          "description": "Business planning platform for enterprise finance and revenue teams",
+          "sector": "SaaS"
+        }
+      ],
+      "timing_metrics": {
+        "thesis_temperature": "cold",
+        "invest_count_90d": 0,
+        "invest_count_365d": 2,
+        "days_since_last_invest": 420,
+        "sectors_filter": []
+      }
+    },
+    "alwyn_thin": {
+      "_doc": "Frozen context for focus_areas coverage fixtures. firm_focus_areas is non-empty ([BioTech, FoodTech, Health, Clean Tech, Impact]) so claims asserting a listed sector are VERIFIED and claims asserting an absent sector (FinTech, SaaS) are FABRICATED. Portfolio + thesis clusters present for stage coverage.",
+      "firm_focus_areas": [
+        "BioTech",
+        "FoodTech",
+        "Health",
+        "Clean Tech",
+        "Impact"
+      ],
+      "firm_geography": [],
+      "firm_stages": [
+        "Seed",
+        "Series A"
+      ],
+      "thesis_clusters": [
+        {
+          "name": "agri-food tech",
+          "top_sectors": [
+            "FoodTech",
+            "AgriTech"
+          ]
+        }
+      ]
+    }
+  },
+  "fixtures": [
+    {
+      "id": "q_verified_qphox",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation counts QphoX, a quantum photonics company, among its portfolio."
+    },
+    {
+      "id": "q_verified_chiral",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "The firm has backed Chiral, a Swiss nanomaterials company."
+    },
+    {
+      "id": "q_verified_partner_focus",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Managing Partner Christophe Jurczak focuses on quantum and deeptech."
+    },
+    {
+      "id": "q_verified_geo",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation invests across Europe and is based in France."
+    },
+    {
+      "id": "q_verified_stage",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "The firm backs companies at the pre-seed and seed stage."
+    },
+    {
+      "id": "q_verified_fund_news",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation recently closed a new €220 million fund."
+    },
+    {
+      "id": "q_verified_coinvestor",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Toshiba is among the firm's backers."
+    },
+    {
+      "id": "q_verified_recent_deal",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation recently backed QphoX in a seed round."
+    },
+    {
+      "id": "q_verified_timing",
+      "label": "verified",
+      "context_id": "quantonation_rich",
+      "claim": "The firm is actively deploying, with several investments in the last quarter."
+    },
+    {
+      "id": "p_verified_vow",
+      "label": "verified",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge's portfolio includes Vow, a cultured-meat company."
+    },
+    {
+      "id": "p_verified_tastewise",
+      "label": "verified",
+      "context_id": "peakbridge_thin",
+      "claim": "The firm has invested in Tastewise."
+    },
+    {
+      "id": "p_verified_fund",
+      "label": "verified",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge raised a $187 million growth fund."
+    },
+    {
+      "id": "i_verified_360",
+      "label": "verified",
+      "context_id": "isai_exits",
+      "claim": "ISAI backed 360Learning, a collaborative learning platform."
+    },
+    {
+      "id": "i_verified_geo",
+      "label": "verified",
+      "context_id": "isai_exits",
+      "claim": "ISAI is a France-based investor."
+    },
+    {
+      "id": "q_fair_thesis_deeptech",
+      "label": "fair_inference",
+      "context_id": "quantonation_rich",
+      "claim": "The firm has deep domain expertise in quantum technologies."
+    },
+    {
+      "id": "q_fair_value_add",
+      "label": "fair_inference",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation provides hands-on scientific support to its deeptech founders."
+    },
+    {
+      "id": "q_fair_sector_adjacent",
+      "label": "fair_inference",
+      "context_id": "quantonation_rich",
+      "claim": "The firm is well-positioned to support quantum-computing hardware startups."
+    },
+    {
+      "id": "q_fair_fund_focus",
+      "label": "fair_inference",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation's newest fund is likely to target quantum error-correction startups."
+    },
+    {
+      "id": "p_fair_focus_foodtech",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge specialises in food and agriculture technology."
+    },
+    {
+      "id": "p_fair_check_inferred",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "Based on its portfolio, PeakBridge likely writes early-stage checks in the low single-digit millions."
+    },
+    {
+      "id": "p_fair_stage_inferred",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge appears to focus on early-stage food startups."
+    },
+    {
+      "id": "p_fair_geo_inferred",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge invests in European food companies."
+    },
+    {
+      "id": "p_fair_timing_inferred",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "The firm has been active in backing alternative-protein companies."
+    },
+    {
+      "id": "p_fair_value_add",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge helps its portfolio companies scale into retail distribution."
+    },
+    {
+      "id": "p_fair_mission",
+      "label": "fair_inference",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge is focused on building a more sustainable food system."
+    },
+    {
+      "id": "i_fair_partner_focus",
+      "label": "fair_inference",
+      "context_id": "isai_exits",
+      "claim": "Partner Jean-David Chamboredon focuses on SaaS investments."
+    },
+    {
+      "id": "i_fair_exit_thesis",
+      "label": "fair_inference",
+      "context_id": "isai_exits",
+      "claim": "ISAI has a strong track record of backing companies to successful exits."
+    },
+    {
+      "id": "i_fair_check_inferred",
+      "label": "fair_inference",
+      "context_id": "isai_exits",
+      "claim": "ISAI generally writes checks of a few million euros."
+    },
+    {
+      "id": "i_fair_consumer_focus",
+      "label": "fair_inference",
+      "context_id": "isai_exits",
+      "claim": "ISAI has notable experience in consumer and marketplace businesses."
+    },
+    {
+      "id": "i_fair_network",
+      "label": "fair_inference",
+      "context_id": "isai_exits",
+      "claim": "ISAI has a strong network among French technology entrepreneurs."
+    },
+    {
+      "id": "q_fab_openai",
+      "label": "fabricated",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation is an early investor in OpenAI, the AI research lab."
+    },
+    {
+      "id": "q_fab_fund_size",
+      "label": "fabricated",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation manages a flagship fund of over €5 billion in assets."
+    },
+    {
+      "id": "q_fab_partner",
+      "label": "fabricated",
+      "context_id": "quantonation_rich",
+      "claim": "Partner Sarah Chen leads the firm's biotech practice."
+    },
+    {
+      "id": "q_fab_us_hq",
+      "label": "fabricated",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation is headquartered in San Francisco."
+    },
+    {
+      "id": "q_fab_ipo",
+      "label": "fabricated",
+      "context_id": "quantonation_rich",
+      "claim": "Quantonation took QphoX public on the Nasdaq last year."
+    },
+    {
+      "id": "p_fab_spacex",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge's portfolio includes SpaceX."
+    },
+    {
+      "id": "p_fab_check",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge writes checks of up to $50 million per deal."
+    },
+    {
+      "id": "p_fab_stage",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge is a late-stage leveraged-buyout firm."
+    },
+    {
+      "id": "p_fab_aum",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge's flagship fund is its tenth, totaling €2 billion."
+    },
+    {
+      "id": "i_fab_stripe",
+      "label": "fabricated",
+      "context_id": "isai_exits",
+      "claim": "ISAI led the Series A for Stripe."
+    },
+    {
+      "id": "i_fab_partner_role",
+      "label": "fabricated",
+      "context_id": "isai_exits",
+      "claim": "Jean-David Chamboredon is the firm's Chief Technology Officer."
+    },
+    {
+      "id": "i_fab_geo",
+      "label": "fabricated",
+      "context_id": "isai_exits",
+      "claim": "ISAI primarily invests in Southeast Asia."
+    },
+    {
+      "id": "p_fab_geo_absent_field",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge primarily invests in Southeast Asian markets."
+    },
+    {
+      "id": "p_fab_stage_absent_field",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge exclusively backs late-stage, pre-IPO buyout deals."
+    },
+    {
+      "id": "p_fab_check_hedged_specific",
+      "label": "fabricated",
+      "context_id": "peakbridge_thin",
+      "claim": "PeakBridge probably writes checks of around $80 million per deal."
+    },
+    {
+      "id": "cp_verified_customer_segment",
+      "label": "verified",
+      "context_id": "cluster_patterns_b2b",
+      "claim": "The firm's portfolio shows a moderate clustering pattern for \"b2b_enterprise\" customer segments."
+    },
+    {
+      "id": "cp_verified_gtm",
+      "label": "verified",
+      "context_id": "cluster_patterns_b2b",
+      "claim": "The firm's portfolio clustering leans more heavily towards an enterprise_sales approach."
+    },
+    {
+      "id": "cp_verified_business_model",
+      "label": "verified",
+      "context_id": "cluster_patterns_b2b",
+      "claim": "The firm's portfolio shows a moderate pattern for platform business models and b2b_enterprise customer segments."
+    },
+    {
+      "id": "cp_fair_count",
+      "label": "fair_inference",
+      "context_id": "cluster_patterns_b2b",
+      "claim": "Nearly all companies in their relevant portfolio cluster target the b2b_enterprise segment."
+    },
+    {
+      "id": "cp_fab_wrong_segment",
+      "label": "fabricated",
+      "context_id": "cluster_patterns_b2b",
+      "claim": "The firm's portfolio clusters strongly around the b2c_consumer customer segment."
+    },
+    {
+      "id": "te_fab_actively_deploying",
+      "label": "fabricated",
+      "context_id": "timing_editorializing_cold",
+      "claim": "The firm is actively deploying capital and targeting new portfolio additions this quarter."
+    },
+    {
+      "id": "te_fab_90d_sectors",
+      "label": "fabricated",
+      "context_id": "timing_editorializing_cold",
+      "claim": "Their last 90-day investments have focused on DeepTech, Semiconductor, and AI Infrastructure."
+    },
+    {
+      "id": "te_verified_cold_count",
+      "label": "verified",
+      "context_id": "timing_editorializing_cold",
+      "claim": "The firm recorded zero tracked investments in the last 90 days."
+    },
+    {
+      "id": "te_fair_quiet",
+      "label": "fair_inference",
+      "context_id": "timing_editorializing_cold",
+      "claim": "The firm appears to be in a relatively quiet deployment phase currently."
+    },
+    {
+      "id": "fa_verified_focus_area_exact",
+      "label": "verified",
+      "context_id": "alwyn_thin",
+      "claim": "The firm explicitly focuses on FoodTech and Impact investments."
+    },
+    {
+      "id": "fa_verified_focus_area_subset",
+      "label": "verified",
+      "context_id": "alwyn_thin",
+      "claim": "BioTech and Clean Tech are core focus areas for this firm."
+    },
+    {
+      "id": "fa_fab_focus_area_absent",
+      "label": "fabricated",
+      "context_id": "alwyn_thin",
+      "claim": "The firm has a strong focus on FinTech and SaaS companies."
+    }
+  ]
+}
