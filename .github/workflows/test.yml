@@ -14,5 +14,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[test]"
-      - run: GOOGLE_API_KEY= python -m pytest -q
+      - run: GOOGLE_API_KEY= env -u ANTHROPIC_API_KEY python -m pytest -q
       - run: make reports PY=python

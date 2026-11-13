@@ -24,9 +24,7 @@ behave correctly end-to-end.
 
 CI-strip safety: every test in this file is pure-helper-level (uses
 ``audit_report_claims`` directly with a MagicMock client). No engine
-imports. Gated on ``google.genai`` being present because the helper
-itself does a lazy ``from google.genai import types`` inside the
-function body.
+imports.
 """
 from __future__ import annotations
 
@@ -36,30 +34,17 @@ from unittest.mock import MagicMock
 import pytest
 
 
-try:  # noqa: SIM105
-    from google.genai import types as _real_genai_types  # noqa: F401
-    _REAL_GENAI_PRESENT = hasattr(_real_genai_types, "GenerateContentConfig")
-except Exception:
-    _REAL_GENAI_PRESENT = False
-
-
 from pierre.agents._claim_auditor import audit_report_claims
 
 
-_SKIP_NO_REAL_GENAI = pytest.mark.skipif(
-    not _REAL_GENAI_PRESENT,
-    reason="fixtures-level test needs real google.genai (the auditor lazy-imports types)",
-)
 
 
 def _make_client(audits_payload: list[dict]) -> MagicMock:
     client = MagicMock()
-    resp = MagicMock()
-    resp.text = json.dumps({"audits": audits_payload})
-    resp.usage_metadata = MagicMock(
-        prompt_token_count=2000, candidates_token_count=300,
-    )
-    client.models.generate_content.return_value = resp
+    client.messages.create.return_value = {
+        "content": [{"type": "text", "text": json.dumps({"audits": audits_payload})}],
+        "usage": {"input_tokens": 2000, "output_tokens": 300},
+    }
     return client
 
 
@@ -69,7 +54,6 @@ def _make_client(audits_payload: list[dict]) -> MagicMock:
 # ---------------------------------------------------------------------------
 
 
-@_SKIP_NO_REAL_GENAI
 def test_invented_portfolio_company_flagged_as_fabricated(monkeypatch):
     """Report: 'Fourth Coffee has backed companies like Acme, Beta, GhostCo
     in this space.' Context portfolio contains only Acme + Beta. The
@@ -124,7 +108,6 @@ def test_invented_portfolio_company_flagged_as_fabricated(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-@_SKIP_NO_REAL_GENAI
 def test_ticket_band_without_source_news_flagged_as_fabricated(monkeypatch):
     """Report: 'Their typical check size is £500K-£1M at Seed.' Context
     has no news article with a ticket_size field that backs the band.
@@ -173,7 +156,6 @@ def test_ticket_band_without_source_news_flagged_as_fabricated(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-@_SKIP_NO_REAL_GENAI
 def test_partner_role_hallucination_flagged_as_fabricated(monkeypatch):
     """Report: 'Their partner Jane Doe leads FinTech investments.'
     Context.partners has no Jane Doe. The auditor must flag as
@@ -212,7 +194,6 @@ def test_partner_role_hallucination_flagged_as_fabricated(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-@_SKIP_NO_REAL_GENAI
 def test_timing_claim_contradicts_metrics_flagged_as_fabricated(monkeypatch):
     """Report: 'They are actively deploying in this sector.' Context
     timing_metrics says thesis_temperature='cold' with 0 investments in

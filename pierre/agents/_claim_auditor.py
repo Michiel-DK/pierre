@@ -8,10 +8,10 @@ partner roles, timing claims that contradict ``timing_metrics``.
 Architecture:
 
 - Pure stdlib + ``typing`` + ``dataclasses``. No database driver / ORM
-  imports. NO ``google.genai`` import at module top — the caller threads a
-  live client through, so the module imports in a stripped-down
-  dependency set.
-- ONE Gemini Flash call per report — extract every claim + cross-check
+  imports. NO SDK import at module top — the caller threads a client
+  exposing ``messages.create`` through, so the module imports in a
+  stripped-down dependency set.
+- ONE Claude call per report — extract every claim + cross-check
   in a single round-trip. No per-claim fan-out (cost explosion).
 - Three verdict states per claim: ``verified`` (matches a context
   entry), ``fabricated`` (references a name/value absent from the
@@ -23,11 +23,11 @@ Architecture:
   ``annotate`` (default: tag ``(fabricated)`` / ``(unverified)`` claims), or
   ``pass_through`` (no rewrite, only structured audit returned).
 - Token-budget guard: caps the auditor input at ~4k tokens of report
-  text to keep cost around $0.0025/report on Flash. Excess is truncated with
-  a marker, and the audit summary flags ``budget_truncated=True``.
-- Best-effort but observable: a failing Gemini call logs a WARNING and
-  returns a pass-through result rather than failing silently or breaking
-  the report.
+  text. Excess is truncated with a marker, and the audit summary flags
+  ``budget_truncated=True``.
+- Best-effort but observable: a failing call logs a WARNING and returns a
+  pass-through result with ``error`` set, so a caller can tell "audit failed"
+  from "audit found nothing".
 """
 
 from __future__ import annotations
@@ -91,9 +91,11 @@ class AuditResult:
             per ``RCF_REDACT_POLICY`` (strip / annotate / pass_through).
         budget_truncated: True when the input report exceeded the
             token-budget cap and was truncated before auditing.
-        audit_cost_usd: Cost of the single Gemini Flash audit call.
-            0.0 when the helper short-circuited (empty report / empty
-            context / Gemini failure caught upstream).
+        input_tokens: Input tokens of the single audit call (0 when the
+            helper short-circuited).
+        output_tokens: Output tokens of that call.
+        error: Set when the call failed; the counts are then all zero and
+            mean "no audit", not "no problems".
     """
 
     verified_count: int
@@ -102,24 +104,26 @@ class AuditResult:
     audits: list = field(default_factory=list)
     redacted_report: str = ""
     budget_truncated: bool = False
-    audit_cost_usd: float = 0.0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    error: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
-# Gemini client protocol — keeps the module CI-strip safe by not importing
-# google.genai at the top level. Caller threads a real client through.
+# Client protocol — keeps the module import-light by not importing the SDK at
+# the top level. The caller threads a real (or recorded) client through.
 # ---------------------------------------------------------------------------
 
 
-class _GeminiClientProtocol(Protocol):
-    """Minimal shape we exercise on the Gemini client.
+class _ClientProtocol(Protocol):
+    """Minimal shape we exercise on the client: ``client.messages.create(**kwargs)``."""
 
-    The real ``google.genai.Client`` exposes ``client.models.generate_content``;
-    we duck-type that shape so unit tests can pass a ``MagicMock`` without
-    needing the SDK installed.
-    """
+    messages: Any
 
-    models: Any  # has `.generate_content(model=..., contents=..., config=...)`
+
+DEFAULT_AUDIT_MODEL = "claude-opus-5-5"
+AUDIT_EFFORT = "medium"
+AUDIT_MAX_TOKENS = 8000
 
 
 # ---------------------------------------------------------------------------
@@ -127,15 +131,8 @@ class _GeminiClientProtocol(Protocol):
 # ---------------------------------------------------------------------------
 
 # Token-budget cap on the input report text. ~4k tokens ≈ ~16k chars.
-# Beyond this we truncate and flag ``budget_truncated=True``. At the Gemini 2.5
-# Flash rates below, a typical audit (~4k tokens in, ~500 out) costs ~$0.0025.
+# Beyond this we truncate and flag ``budget_truncated=True``.
 _REPORT_TEXT_CHAR_CAP = 16_000
-
-# Gemini 2.5 Flash pricing (USD per 1M tokens), the same rates as
-# ``pierre/utils/llm_cost.py``. Local constants keep this module import-light;
-# the figure is observability only (a cost tally, not a budget gate).
-_GEMINI_FLASH_INPUT_PER_1M = 0.30
-_GEMINI_FLASH_OUTPUT_PER_1M = 2.50
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +167,9 @@ def _summarize_context_for_prompt(context: dict) -> dict:
             "firm_foundation_date": None,
             "recent_deals": [],
             "cluster_patterns": None,
+            "firm_profiles": [],
+            "actions_taken": [],
+            "tool_errors": [],
         }
 
     # ``portfolio_companies`` may live under context['portfolio_companies']
@@ -372,6 +372,10 @@ def _summarize_context_for_prompt(context: dict) -> dict:
         if compacted:
             cluster_patterns_for_prompt = compacted
 
+    firm_profiles = [p for p in (context.get("firm_profiles") or []) if isinstance(p, dict)]
+    actions_taken = [str(a)[:300] for a in (context.get("actions_taken") or []) if a]
+    tool_errors = [str(e)[:300] for e in (context.get("tool_errors") or []) if e]
+
     return {
         "portfolio_companies": portfolio,
         "news_articles": news,
@@ -389,6 +393,9 @@ def _summarize_context_for_prompt(context: dict) -> dict:
         "firm_foundation_date": firm_foundation_date,
         "recent_deals": recent_deals[:10],
         "cluster_patterns": cluster_patterns_for_prompt,
+        "firm_profiles": firm_profiles[:20],
+        "actions_taken": actions_taken[:20],
+        "tool_errors": tool_errors[:10],
     }
 
 
@@ -586,6 +593,11 @@ def _build_audit_prompt(report_text: str, context_summary: dict) -> str:
         "     $80M for a firm whose portfolio consists of early-stage food-tech\n"
         "     startups). Do NOT apply rule 10's 'UNVERIFIABLE' fallback to\n"
         "     check-size or geographic claims.\n\n"
+        "11. context.firm_profiles[] holds one profile per firm that was looked\n"
+        "   up (name, hq, stages, focus, cheque range, founded, portfolio_count,\n"
+        "   fit_note when present). A claim about a firm's own attributes is\n"
+        "   checked against the profile of the firm it NAMES, not against the\n"
+        "   profile of another firm.\n\n"
         "Output JSON ONLY — no commentary outside the JSON. Schema:\n\n"
         "{\n"
         '  "audits": [\n'
@@ -891,18 +903,6 @@ def _soften_fabricated_clauses(
 
 
 # ---------------------------------------------------------------------------
-# Cost estimator — pure math, no Gemini import.
-# ---------------------------------------------------------------------------
-
-
-def _estimate_cost_usd(input_tokens: int, output_tokens: int) -> float:
-    return (
-        (input_tokens / 1_000_000.0) * _GEMINI_FLASH_INPUT_PER_1M
-        + (output_tokens / 1_000_000.0) * _GEMINI_FLASH_OUTPUT_PER_1M
-    )
-
-
-# ---------------------------------------------------------------------------
 # Verdict parsing — defensive JSON shape coercion.
 # ---------------------------------------------------------------------------
 
@@ -916,36 +916,10 @@ _VALID_TYPES: tuple = (
     "other",
 )
 
-# Schema-constrain the audit call so
-# Gemini pins the output shape (mirrors the JSON spec in ``_build_audit_prompt``).
-# Plain-dict literal so the module stays CI-strip safe (no google.genai import
-# at module load). ``_parse_audits_payload`` still tolerates extra/unknown
-# values, so this is a belt-and-braces backstop, not the sole parse defence.
-AUDIT_RESPONSE_SCHEMA: dict = {
-    "type": "object",
-    "properties": {
-        "audits": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "claim_text": {"type": "string"},
-                    "claim_type": {"type": "string"},
-                    "verdict": {"type": "string"},
-                    "evidence": {"type": "string", "nullable": True},
-                },
-                "required": ["claim_text", "verdict"],
-            },
-        }
-    },
-    "required": ["audits"],
-}
-
-
 def _parse_audits_payload(raw_text: str) -> list:
     """Parse the LLM JSON payload into a list of :class:`ClaimAudit`.
 
-    Tolerates Gemini code-fence wrappers (```json ... ```), unknown
+    Tolerates code-fence wrappers (```json ... ```), unknown
     verdict values (coerced to ``unverifiable``), and partial dicts.
     Returns ``[]`` when the payload is unparseable.
     """
@@ -1004,46 +978,32 @@ def _parse_audits_payload(raw_text: str) -> list:
 def audit_report_claims(
     report_text: str,
     context: dict,
-    gemini_client: _GeminiClientProtocol,
+    client: _ClientProtocol,
     *,
-    model: Optional[str] = None,
-    cost_log_callback: Optional[Callable[[float, int, int], None]] = None,
+    model: str = DEFAULT_AUDIT_MODEL,
+    usage_callback: Optional[Callable[[int, int], None]] = None,
 ) -> AuditResult:
     """Audit every factual claim in ``report_text`` against ``context``.
 
-    Single Gemini Flash call: extracts every claim AND verifies it in
-    one round-trip. Returns a :class:`AuditResult` with per-claim
-    audits + a redacted report (per ``RCF_REDACT_POLICY`` env var).
+    One model call extracts every claim AND verifies it. Returns an
+    :class:`AuditResult` with per-claim audits and a redacted report (per the
+    ``RCF_REDACT_POLICY`` env var).
 
     Args:
-        report_text: The narrative prose generated by the engine. Can
-            be the full markdown report OR just the LLM-generated
-            narrative (whichever the caller wants audited).
-        context: The same dict the engine populates and threads to
-            ``_generate_narrative`` (sectors/stages/geography +
-            portfolio_companies + news_articles + partners +
-            knowledge_paths + timing_metrics + similar_firms +
-            thesis_clusters). Missing keys are tolerated; the auditor
-            simply has less evidence to verify against.
-        gemini_client: A live ``google.genai.Client`` instance (or any
-            object exposing ``client.models.generate_content``).
-            Injected so the helper stays CI-strip safe — no SDK
-            import at module load.
-        model: Gemini model id. Defaults to ``GEMINI_MATCHING_MODEL``
-            (resolved lazily from ``pierre.config`` — ``pierre.config`` is
-            pure stdlib so the lazy import stays CI-strip safe; we use
-            the matching model constant (one chokepoint) so
-            a future model swap edits a single config line and every
-            auditor call site moves with it).
-        cost_log_callback: Optional callable invoked with
-            ``(cost_usd, input_tokens, output_tokens)`` for downstream
-            telemetry. Failures inside the callback are swallowed.
+        report_text: The narrative to audit.
+        context: The evidence dict the narrative was written from. Missing keys
+            are tolerated; the auditor simply has less to verify against.
+        client: Any object exposing ``client.messages.create(**kwargs)`` (the
+            Anthropic SDK client, or a recording / replay wrapper).
+        model: Claude model id.
+        usage_callback: Optional ``(input_tokens, output_tokens)`` hook.
+            Failures inside it are swallowed.
 
     Returns:
-        :class:`AuditResult`. When the helper short-circuits
-        (empty report, empty context, Gemini call raises), returns a
-        zero-count result with ``redacted_report=report_text`` so the
-        caller can chain unconditionally.
+        :class:`AuditResult`. When the helper short-circuits (empty report,
+        empty context) it returns a zero-count result with
+        ``redacted_report=report_text``. When the call raises, the same, with
+        ``error`` set.
     """
     if not report_text:
         return AuditResult(
@@ -1053,25 +1013,15 @@ def audit_report_claims(
             audits=[],
             redacted_report="",
             budget_truncated=False,
-            audit_cost_usd=0.0,
         )
 
     truncated_text, was_truncated = _truncate_report(report_text)
     context_summary = _summarize_context_for_prompt(context or {})
 
-    # When the context is completely empty there is nothing to verify
-    # against — every claim would land as ``fabricated`` or
-    # ``unverifiable``, which is noise. Short-circuit with a
-    # pass-through audit so the caller never blocks on an empty-context
-    # report.
+    # An empty context has nothing to verify against: every claim would land as
+    # ``fabricated`` or ``unverifiable``, which is noise. Pass through.
     if _is_context_empty(context_summary):
-        logger.warning(
-            "audit_report_claims: empty context dict — skipping audit. "
-            "The narrative was generated without verifiable evidence; "
-            "consider whether the report path is correctly assembling "
-            "portfolio_companies / news_articles / partners before "
-            "generate_report runs."
-        )
+        logger.warning("audit_report_claims: empty context dict — skipping audit.")
         return AuditResult(
             verified_count=0,
             fabricated_count=0,
@@ -1079,75 +1029,46 @@ def audit_report_claims(
             audits=[],
             redacted_report=report_text,
             budget_truncated=was_truncated,
-            audit_cost_usd=0.0,
         )
 
     prompt = _build_audit_prompt(truncated_text, context_summary)
 
-    # Resolve model lazily — pierre.config is pure stdlib so it's
-    # safe to import here, but we keep it out of module top (zero project
-    # imports up there). Going through the per-use-case constant keeps
-    # model choice in one place; the matching model is correct for the
-    # audit since it is the same Gemini Flash family that produced the
-    # narrative.
-    if model is None:
-        from pierre.config import GEMINI_MATCHING_MODEL as _resolved_model
-        model = _resolved_model
-
-    response = None
     raw_text = ""
-    audit_cost_usd = 0.0
     input_tokens = 0
     output_tokens = 0
     try:
-        # google.genai.types is imported lazily here so the helper module
-        # itself stays import-safe in CI-strip. Caller already proved the
-        # SDK is installed by passing a live client.
-        from google.genai import types as _genai_types  # type: ignore
-
-        # Schema-constrain the call (``response_schema=AUDIT_RESPONSE_SCHEMA``)
-        # and add exponential backoff on transient API errors via the shared
-        # ``call_with_retry`` chokepoint. ``_llm_retry`` is pure-stdlib so it
-        # is safe to import here. The auditor already degrades
-        # gracefully (``_parse_audits_payload`` returns ``[]`` on bad JSON and
-        # the ``except`` below pass-throughs), so a bounded JSON retry is
-        # unnecessary — ``parse_attempts=1`` with an identity parse keeps the
-        # backoff on the API call only.
         from pierre.agents._llm_retry import call_with_retry as _call_with_retry
 
-        config_kwargs = dict(
-            temperature=0.0,
-            response_mime_type="application/json",
-            response_schema=AUDIT_RESPONSE_SCHEMA,
-        )
+        # Transient errors are retried once, by the client; a second layer of retries here would multiply
+        # the calls. ``parse_attempts=1`` keeps a malformed payload degrading to an empty audit.
         response = _call_with_retry(
-            lambda: gemini_client.models.generate_content(
+            lambda: client.messages.create(
                 model=model,
-                contents=prompt,
-                config=_genai_types.GenerateContentConfig(**config_kwargs),
+                max_tokens=AUDIT_MAX_TOKENS,
+                output_config={"effort": AUDIT_EFFORT},
+                messages=[{"role": "user", "content": prompt}],
             ),
             lambda r: r,
+            api_attempts=1,
             parse_attempts=1,
             label="claim_audit",
         )
-        raw_text = getattr(response, "text", "") or ""
-
-        usage = getattr(response, "usage_metadata", None)
-        if usage is not None:
-            input_tokens = int(getattr(usage, "prompt_token_count", 0) or 0)
-            output_tokens = int(getattr(usage, "candidates_token_count", 0) or 0)
-            audit_cost_usd = _estimate_cost_usd(input_tokens, output_tokens)
-    except Exception:
-        # Best-effort: a Gemini failure must not corrupt the report path.
-        # Log loudly so the operator sees the
-        # auditor went dark — but return a pass-through result so the
-        # narrative still ships.
-        logger.warning(
-            "audit_report_claims: Gemini call raised — passing report "
-            "through without audit; "
-            "if it persists, check API key / model availability.",
-            exc_info=True,
+        content = response["content"] if isinstance(response, dict) else response.content
+        raw_text = "".join(
+            (b["text"] if isinstance(b, dict) else b.text)
+            for b in content
+            if (b["type"] if isinstance(b, dict) else b.type) == "text"
         )
+        usage = response["usage"] if isinstance(response, dict) else response.usage
+        get = usage.get if isinstance(usage, dict) else (lambda k, d=0: getattr(usage, k, d))
+        input_tokens = int(get("input_tokens", 0) or 0)
+        output_tokens = int(get("output_tokens", 0) or 0)
+    except Exception as exc:
+        if getattr(exc, "abort_run", False):  # a budget stop or a replay mismatch must not look like an audit error
+            raise
+        # Best-effort: an audit failure must not corrupt the caller's path, but
+        # it must not look like a clean audit either, hence ``error``.
+        logger.warning("audit_report_claims: call raised — passing report through without audit", exc_info=True)
         return AuditResult(
             verified_count=0,
             fabricated_count=0,
@@ -1155,7 +1076,7 @@ def audit_report_claims(
             audits=[],
             redacted_report=report_text,
             budget_truncated=was_truncated,
-            audit_cost_usd=0.0,
+            error=f"{type(exc).__name__}: {exc}"[:300],
         )
 
     audits = _parse_audits_payload(raw_text)
@@ -1167,14 +1088,11 @@ def audit_report_claims(
     policy = _resolve_redact_policy()
     redacted = _apply_redaction(report_text, audits, policy)
 
-    if cost_log_callback is not None:
+    if usage_callback is not None:
         try:
-            cost_log_callback(audit_cost_usd, input_tokens, output_tokens)
+            usage_callback(input_tokens, output_tokens)
         except Exception:
-            logger.debug(
-                "audit_report_claims: cost_log_callback raised — ignoring",
-                exc_info=True,
-            )
+            logger.debug("audit_report_claims: usage_callback raised — ignoring", exc_info=True)
 
     return AuditResult(
         verified_count=verified,
@@ -1183,7 +1101,8 @@ def audit_report_claims(
         audits=audits,
         redacted_report=redacted,
         budget_truncated=was_truncated,
-        audit_cost_usd=audit_cost_usd,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
     )
 
 
@@ -1203,6 +1122,10 @@ def _is_context_empty(summary: dict) -> bool:
         or summary.get("similar_firms")
         or summary.get("thesis_clusters")
         or summary.get("cluster_patterns")
+        or summary.get("recent_deals")
+        or summary.get("firm_profiles")
+        or summary.get("actions_taken")
+        or summary.get("tool_errors")
     )
 
 

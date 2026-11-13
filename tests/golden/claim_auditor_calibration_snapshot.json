@@ -6,16 +6,16 @@
   "fabricated_recall": 1.0,
   "confusion_matrix": {
     "verified": {
-      "verified": 20,
-      "unverifiable": 0,
+      "verified": 18,
+      "unverifiable": 2,
       "fabricated": 0,
       "no_claim": 0
     },
     "fair_inference": {
-      "verified": 7,
+      "verified": 6,
       "unverifiable": 11,
       "fabricated": 0,
-      "no_claim": 0
+      "no_claim": 1
     },
     "fabricated": {
       "verified": 0,
@@ -26,17 +26,17 @@
   },
   "per_verdict_precision_recall": {
     "verified": {
-      "precision": 0.7407407407407407,
-      "recall": 1.0,
-      "tp": 20,
-      "fp": 7,
-      "fn": 0
+      "precision": 0.75,
+      "recall": 0.9,
+      "tp": 18,
+      "fp": 6,
+      "fn": 2
     },
     "unverifiable": {
-      "precision": 1.0,
+      "precision": 0.8461538461538461,
       "recall": 0.6111111111111112,
       "tp": 11,
-      "fp": 0,
+      "fp": 2,
       "fn": 7
     },
     "fabricated": {
@@ -48,7 +48,10 @@
     }
   },
   "false_positive_fixtures": [],
-  "no_claim_fixtures": [],
+  "no_claim_fixtures": [
+    "q_fair_sector_adjacent"
+  ],
+  "errored_fixtures": [],
   "per_fixture": [
     {
       "id": "q_verified_qphox",
@@ -68,7 +71,7 @@
     {
       "id": "q_verified_geo",
       "label": "verified",
-      "effective_verdict": "verified"
+      "effective_verdict": "unverifiable"
     },
     {
       "id": "q_verified_stage",
@@ -133,7 +136,7 @@
     {
       "id": "q_fair_sector_adjacent",
       "label": "fair_inference",
-      "effective_verdict": "verified"
+      "effective_verdict": "no_claim"
     },
     {
       "id": "q_fair_fund_focus",
@@ -288,7 +291,7 @@
     {
       "id": "cp_verified_business_model",
       "label": "verified",
-      "effective_verdict": "verified"
+      "effective_verdict": "unverifiable"
     },
     {
       "id": "cp_fair_count",
@@ -336,6 +339,26 @@
       "effective_verdict": "fabricated"
     }
   ],
-  "captured_at": "2026-07-17",
-  "model": "gemini-2.5-flash"
+  "captured_at": "2026-11-13T11:38:10.027516+00:00",
+  "model": "claude-opus-5-5",
+  "earlier_captures": [
+    {
+      "captured_at": "2026-07-17",
+      "model": "gemini-2.5-flash",
+      "fabricated_false_positive_rate": 0.0,
+      "fabricated_recall": 1.0,
+      "fabricated_caught": "19 of 19",
+      "no_claim_fixtures": []
+    },
+    {
+      "captured_at": "2026-11-13T11:33:55.713076+00:00",
+      "model": "claude-opus-5-5",
+      "fabricated_false_positive_rate": 0.0,
+      "fabricated_recall": 0.8947368421052632,
+      "fabricated_caught": "17 of 19",
+      "no_claim_fixtures": [
+        "q_fab_fund_size"
+      ]
+    }
+  ]
 }

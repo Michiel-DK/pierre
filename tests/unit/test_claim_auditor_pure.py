@@ -7,23 +7,17 @@ Single-shot factcheck pass over the deep-report narrative. These tests cover:
 - ``_truncate_report`` — token-budget guard
 - ``_apply_redaction`` — strip / annotate / pass_through policies
 - ``_safe_replace`` — whitespace-tolerant rewrite
-- ``_estimate_cost_usd`` — Flash pricing math
 - ``_parse_audits_payload`` — JSON tolerance + code-fence stripping +
   unknown-verdict coercion
-- ``audit_report_claims`` — end-to-end with a MagicMock Gemini client,
+- ``audit_report_claims`` — end-to-end with a fake Claude client,
   per-claim-type coverage (portfolio_company / news_citation / partner /
   ticket_band / timing_signal), empty-context short-circuit, Gemini
   failure pass-through
 
 All tests run in a stripped-down environment without database drivers or
-google.genai. The helper module imports only stdlib + typing +
+the SDK. The helper module imports only stdlib + typing +
 ``dataclasses``, and the mock client is a plain ``MagicMock``.
 
-CI-strip safety guard: a module-top import probe sets a
-``_REAL_GENAI_PRESENT`` flag, and tests that need the SDK are ``@skipif``-ed
-on it — the auditor itself is pure, but the ``google.genai.types`` import
-inside ``audit_report_claims`` requires the real SDK so we gate the live-call
-test on it.
 """
 from __future__ import annotations
 
@@ -34,20 +28,11 @@ from unittest.mock import MagicMock
 import pytest
 
 
-# CI-strip guard — only the live-call test needs google.genai installed.
-try:  # noqa: SIM105
-    from google.genai import types as _real_genai_types  # noqa: F401
-    _REAL_GENAI_PRESENT = hasattr(_real_genai_types, "GenerateContentConfig")
-except Exception:
-    _REAL_GENAI_PRESENT = False
-
-
 from pierre.agents._claim_auditor import (
     AuditResult,
     ClaimAudit,
     _apply_redaction,
     _build_audit_prompt,
-    _estimate_cost_usd,
     _is_context_empty,
     _parse_audits_payload,
     _resolve_redact_policy,
@@ -58,10 +43,6 @@ from pierre.agents._claim_auditor import (
 )
 
 
-_SKIP_NO_REAL_GENAI = pytest.mark.skipif(
-    not _REAL_GENAI_PRESENT,
-    reason="behavioural test needs real google.genai (source-text/parse tests above cover the CI-strip case)",
-)
 
 
 # ---------------------------------------------------------------------------
@@ -341,21 +322,6 @@ class TestSafeReplace:
 
 
 # ---------------------------------------------------------------------------
-# _estimate_cost_usd
-# ---------------------------------------------------------------------------
-
-
-class TestEstimateCost:
-    def test_typical_audit_cost_under_half_a_cent(self):
-        # 4k input + 500 output is a realistic audit ceiling (~$0.0025).
-        cost = _estimate_cost_usd(4_000, 500)
-        assert cost < 0.005, f"Audit cost {cost:.6f} exceeds $0.005 cap"
-
-    def test_zero_tokens_is_zero(self):
-        assert _estimate_cost_usd(0, 0) == 0.0
-
-
-# ---------------------------------------------------------------------------
 # _parse_audits_payload
 # ---------------------------------------------------------------------------
 
@@ -514,7 +480,7 @@ class TestBuildAuditPrompt:
 
 
 # ---------------------------------------------------------------------------
-# audit_report_claims — end-to-end with a MagicMock Gemini client.
+# audit_report_claims — end-to-end with a fake Claude client.
 # ---------------------------------------------------------------------------
 
 
@@ -524,29 +490,24 @@ def _make_mock_client(
     output_tokens: int = 200,
 ) -> MagicMock:
     client = MagicMock()
-    resp = MagicMock()
-    resp.text = json.dumps({"audits": audits_payload})
-    resp.usage_metadata = MagicMock(
-        prompt_token_count=input_tokens,
-        candidates_token_count=output_tokens,
-    )
-    client.models.generate_content.return_value = resp
+    client.messages.create.return_value = {
+        "content": [{"type": "text", "text": json.dumps({"audits": audits_payload})}],
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
+    }
     return client
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_short_circuits_on_empty_report():
-    """Empty narrative → no Gemini call, zero-count result."""
+    """Empty narrative → no call, zero-count result."""
     client = MagicMock()
     out = audit_report_claims("", {"portfolio_companies": [{"name": "Acme"}]}, client)
     assert isinstance(out, AuditResult)
     assert out.verified_count == 0
     assert out.fabricated_count == 0
-    assert out.audit_cost_usd == 0.0
-    client.models.generate_content.assert_not_called()
+    assert out.input_tokens == 0
+    client.messages.create.assert_not_called()
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_short_circuits_on_empty_context():
     """Empty context → no audit fires (nothing to verify against)."""
     client = MagicMock()
@@ -554,10 +515,9 @@ def test_audit_report_claims_short_circuits_on_empty_context():
     assert out.verified_count == 0
     assert out.fabricated_count == 0
     assert out.redacted_report == "Some report text"  # pass-through
-    client.models.generate_content.assert_not_called()
+    client.messages.create.assert_not_called()
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_all_verified():
     """Happy path: every claim verified → counts match, no rewrite."""
     client = _make_mock_client(
@@ -575,10 +535,9 @@ def test_audit_report_claims_all_verified():
     assert out.verified_count == 1
     assert out.fabricated_count == 0
     assert out.unverifiable_count == 0
-    assert out.audit_cost_usd > 0
+    assert out.input_tokens == 1500 and out.output_tokens == 200
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_per_claim_type_coverage():
     """All 5 claim types are accepted and counted correctly."""
     client = _make_mock_client(
@@ -634,22 +593,20 @@ def test_audit_report_claims_per_claim_type_coverage():
     }
 
 
-@_SKIP_NO_REAL_GENAI
-def test_audit_report_claims_gemini_failure_returns_pass_through():
-    """Gemini raises → AuditResult with zero counts, original text intact."""
+def test_audit_report_claims_call_failure_returns_pass_through_with_error():
+    """The call raises → AuditResult with zero counts, original text intact."""
     client = MagicMock()
-    client.models.generate_content.side_effect = RuntimeError("Gemini boom")
+    client.messages.create.side_effect = RuntimeError("boom")
     context = {"portfolio_companies": [{"name": "Acme"}]}
     out = audit_report_claims("Report text", context, client)
     assert out.verified_count == 0
     assert out.fabricated_count == 0
     assert out.redacted_report == "Report text"
-    assert out.audit_cost_usd == 0.0
+    assert out.error is not None and "boom" in out.error
 
 
-@_SKIP_NO_REAL_GENAI
-def test_audit_report_claims_cost_log_callback_fires():
-    """The cost_log_callback receives (cost_usd, in_tokens, out_tokens)."""
+def test_audit_report_claims_usage_callback_fires():
+    """The usage_callback receives (in_tokens, out_tokens)."""
     client = _make_mock_client(
         [
             {
@@ -665,19 +622,17 @@ def test_audit_report_claims_cost_log_callback_fires():
 
     received: list = []
 
-    def _cb(cost: float, in_tok: int, out_tok: int) -> None:
-        received.append((cost, in_tok, out_tok))
+    def _cb(in_tok: int, out_tok: int) -> None:
+        received.append((in_tok, out_tok))
 
-    audit_report_claims("x", context, client, cost_log_callback=_cb)
+    audit_report_claims("x", context, client, usage_callback=_cb)
     assert len(received) == 1
-    cost, in_tok, out_tok = received[0]
+    in_tok, out_tok = received[0]
     assert in_tok == 1000
     assert out_tok == 100
-    assert cost > 0
 
 
-@_SKIP_NO_REAL_GENAI
-def test_audit_report_claims_cost_log_callback_failure_swallowed():
+def test_audit_report_claims_usage_callback_failure_swallowed():
     """A failing callback must not break the audit."""
     client = _make_mock_client(
         [{"claim_text": "x", "claim_type": "other", "verdict": "verified"}]
@@ -688,11 +643,10 @@ def test_audit_report_claims_cost_log_callback_failure_swallowed():
         raise RuntimeError("cb boom")
 
     # Must NOT raise.
-    out = audit_report_claims("x", context, client, cost_log_callback=_bad)
+    out = audit_report_claims("x", context, client, usage_callback=_bad)
     assert out.verified_count == 1
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_annotate_policy_rewrites_text(monkeypatch):
     """Default annotate policy adds (fabricated) / (unverified) caveats."""
     monkeypatch.setenv("RCF_REDACT_POLICY", "annotate")
@@ -714,7 +668,6 @@ def test_audit_report_claims_annotate_policy_rewrites_text(monkeypatch):
     assert "(fabricated)" in out.redacted_report
 
 
-@_SKIP_NO_REAL_GENAI
 def test_audit_report_claims_strip_policy_replaces_text(monkeypatch):
     """Strip policy fully removes the fabricated claim."""
     monkeypatch.setenv("RCF_REDACT_POLICY", "strip")

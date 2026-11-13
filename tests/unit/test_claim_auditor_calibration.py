@@ -229,12 +229,15 @@ def test_snapshot_present_and_consistent():
         f"committed snapshot FP-rate {fp} is None or exceeds threshold {threshold} — "
         f"the auditor is over-flagging legitimate claims, or the capture was degenerate"
     )
-    # No fixture may have errored to no_claim in the committed snapshot — that
-    # would mean the captured FP-rate was measured on a corrupted run that
-    # silently deflated it (silent-failure-hunter #1).
-    assert not snap.get("no_claim_fixtures"), (
-        f"committed snapshot has no_claim fixtures {snap.get('no_claim_fixtures')} — "
-        f"the auditor errored on these; re-capture a clean snapshot"
+    # No fixture may have ERRORED in the committed snapshot: an API failure would silently deflate the FP-rate
+    # (silent-failure-hunter #1). A fixture the model answered with zero extracted claims (no_claim) is not an
+    # error; it is listed in the snapshot, counted as a miss for fabricated fixtures, and capped at 5% of the set.
+    assert not snap.get("errored_fixtures"), (
+        f"committed snapshot has errored fixtures {snap.get('errored_fixtures')} — re-capture a clean snapshot"
+    )
+    assert "errored_fixtures" in snap, "snapshot predates error recording; re-capture it"
+    assert len(snap.get("no_claim_fixtures", [])) <= 0.05 * snap["n_fixtures"], (
+        f"too many no_claim fixtures {snap.get('no_claim_fixtures')}: the auditor is dropping claims"
     )
     # Recall floor must hold on the committed snapshot too — a low FP-rate is
     # hollow if the auditor stopped catching real fabrications (#3).

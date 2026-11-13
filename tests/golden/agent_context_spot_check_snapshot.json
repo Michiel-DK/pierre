@@ -1,0 +1,152 @@
+{
+  "n_claims": 12,
+  "model": "claude-opus-5-5",
+  "captured_at": "2026-11-13",
+  "true_flagged_fabricated": [],
+  "true_verdict_counts": {
+    "verified": 6,
+    "unverifiable": 0,
+    "fabricated": 0,
+    "no_claim": 0
+  },
+  "false_caught": [
+    "f1_wrong_hq",
+    "f2_wrong_founded",
+    "f3_wrong_cheque",
+    "f4_wrong_company_year",
+    "f5_wrong_fit",
+    "f6_wrong_shortlist"
+  ],
+  "false_verdict_counts": {
+    "verified": 0,
+    "unverifiable": 0,
+    "fabricated": 6,
+    "no_claim": 0
+  },
+  "per_claim": [
+    {
+      "id": "t1_hq_cheque",
+      "label": "true",
+      "claim": "Quillmoor Capital is headquartered in London and writes cheques between EUR 500,000 and EUR 3,000,000.",
+      "sub_verdicts": [
+        "verified",
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "t2_portfolio_count",
+      "label": "true",
+      "claim": "Quillmoor Capital has six portfolio companies on record.",
+      "sub_verdicts": [
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "t3_shared_stage",
+      "label": "true",
+      "claim": "Brask Ventures and Gravick Partners both invest at Series A.",
+      "sub_verdicts": [
+        "verified",
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "t4_2024_companies",
+      "label": "true",
+      "claim": "Merrowfield Ventures invested in Umbrevia Bio and Bexmirra Materials in 2024.",
+      "sub_verdicts": [
+        "verified",
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "t5_shortlist_added",
+      "label": "true",
+      "claim": "Brask Ventures has been added to the shortlist.",
+      "sub_verdicts": [
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "t6_error_reported",
+      "label": "true",
+      "claim": "The portfolio statistics call for Ferrin Lane Capital failed, so no statistics are available.",
+      "sub_verdicts": [
+        "verified",
+        "verified"
+      ],
+      "effective_verdict": "verified",
+      "error": null
+    },
+    {
+      "id": "f1_wrong_hq",
+      "label": "false",
+      "claim": "Quillmoor Capital is headquartered in Paris.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    },
+    {
+      "id": "f2_wrong_founded",
+      "label": "false",
+      "claim": "Quillmoor Capital was founded in 2009.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    },
+    {
+      "id": "f3_wrong_cheque",
+      "label": "false",
+      "claim": "Gravick Partners writes cheques of up to EUR 40 million.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    },
+    {
+      "id": "f4_wrong_company_year",
+      "label": "false",
+      "claim": "Merrowfield Ventures invested in Saltmere Energy in 2024.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    },
+    {
+      "id": "f5_wrong_fit",
+      "label": "false",
+      "claim": "A EUR 4,000,000 to EUR 5,000,000 raise falls inside Quillmoor Capital's cheque range.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    },
+    {
+      "id": "f6_wrong_shortlist",
+      "label": "false",
+      "claim": "Orrindale Fund has been added to the shortlist.",
+      "sub_verdicts": [
+        "fabricated"
+      ],
+      "effective_verdict": "fabricated",
+      "error": null
+    }
+  ]
+}

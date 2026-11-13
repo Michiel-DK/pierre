@@ -1,0 +1,10 @@
+{"calls": 3, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "hq-and-ticket-quillmoor", "sha256": "67398ca20476897debd331dfce4475bc5fe880f8a5c98a7523cab9d96cf1a11e"}
+{"calls": 3, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "raise-fit-above-max", "sha256": "fb89664f0c746f31fedef3a142d5a605bd5b6efcdf00d03e2a621f55f0d02135"}
+{"calls": 6, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "tool-failure-timeout", "sha256": "7238e2d84dffca2d643284880b9c5061536b12cb9c09e3960bc7f18e6612e8da"}
+{"calls": 4, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "overclaim-pitch-kestrabel", "sha256": "532031c6cf633f7c62dc576a9636de6ddc07eae8940fe084c7e764cbcddaa2fb"}
+{"calls": 2, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "recent-climate-deals", "sha256": "11e0affea555abfda8aa0601f09098d11ff93f46d65a9f98b5e12bb32a3e6fbe"}
+{"calls": 11, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "shortlist-swap-three-turns", "sha256": "f574457f8e73d5dfde649169039bf71842dc41fbcfd6853b56e1f4b4b43345d1"}
+{"calls": 6, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "saved-list-from-results", "sha256": "7a415ed0565a13a0a02efa72eecc12456d9ef0bb44b1ab7f2aceb3de1a48c038"}
+{"calls": 5, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "cross-turn-consistency-lumary", "sha256": "939630b856505871a50d3c4740c0b77c547d27c1093beb11466157766386b1e7"}
+{"calls": 3, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "recent-climate-deals", "sha256": "3633343ac1a4e859a60bc1fc17acd81bc6c77d8def88934c53d013c25afa100d"}
+{"calls": 9, "command": "make record-agent", "recorded_on": "2026-11-13", "session": "shortlist-swap-three-turns", "sha256": "42a2847be44ade5314d0ed94aecfe6db286387cfae8a30c3c3c6eda6e413d320"}

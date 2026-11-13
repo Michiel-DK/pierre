@@ -29,11 +29,11 @@ match-against-current-corpus. This harness tests the AUDITOR, which must be
 isolated from corpus drift (the database gets repopulated), or the FP-rate
 can't be attributed to auditor changes vs DB shift. So each fixture's
 context is captured once and frozen in the committed JSON. Consequence: this
-harness needs ONLY a Gemini client, NOT a DB.
+harness needs ONLY a Claude client, NOT a DB.
 
 Determinism
 -----------
-Gemini at temperature=0.0 (the auditor's setting) is *nearly* deterministic but
+The model is not fully deterministic (these models take no temperature setting), so
 a borderline claim can flip verified↔unverifiable between runs. So ``--check``
 gates on the AGGREGATE fabricated-FP-rate threshold (the headline metric), NOT
 on exact per-fixture reproduction. Per-fixture verdict drift vs the snapshot is
@@ -66,28 +66,44 @@ from pierre.agents._claim_auditor_calibration import (  # noqa: E402
     fabricated_recall,
     per_verdict_precision_recall,
 )
-from pierre.config import GEMINI_MATCHING_MODEL  # noqa: E402
+from pierre.agents._claim_auditor import DEFAULT_AUDIT_MODEL  # noqa: E402
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _GOLDEN_DIR = _REPO_ROOT / "tests" / "golden"
 _FIXTURES_PATH = _GOLDEN_DIR / "claim_auditor_calibration_fixtures.json"
 _SNAPSHOT_PATH = _GOLDEN_DIR / "claim_auditor_calibration_snapshot.json"
 # Human-readable, client-presentable report — regenerated on every capture (and
-# via --render-md without Gemini) so the number a client sees never goes stale.
+# via --render-md without a model call) so the number a client sees never goes stale.
 _REPORT_MD_PATH = _REPO_ROOT / "docs" / "calibration" / "claim_auditor_calibration_report.md"
 
 
-def _build_gemini_client():
-    """Construct a live google.genai client from the env. Loud failure if no key."""
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        raise SystemExit(
-            "No GEMINI_API_KEY / GOOGLE_API_KEY in env — the calibration harness "
-            "needs a live Gemini client to run the auditor. (It needs NO DB.)"
-        )
-    from google import genai  # imported here so --help works without the SDK
+def _build_client():
+    """A live Claude client from ANTHROPIC_API_KEY (capped by the PIERRE_BUDGET_* variables when they are set)."""
+    from pierre.agent.budget import client_from_env
 
-    return genai.Client(api_key=api_key)
+    return client_from_env()
+
+
+def _preflight(spec: dict, limit: int | None) -> None:
+    """Print the size of the call list and the estimated input tokens (chars / 4); stop if it is over the cap."""
+    from pierre.agents._claim_auditor import (
+        _build_audit_prompt,
+        _summarize_context_for_prompt,
+    )
+
+    fixtures = spec["fixtures"][:limit] if limit else spec["fixtures"]
+    tokens = sum(
+        len(_build_audit_prompt(fx["claim"], _summarize_context_for_prompt(spec["contexts"][fx["context_id"]]))) // 4
+        for fx in fixtures
+    )
+    print(f"call list: {len(fixtures)} model calls; estimated input tokens (chars / 4): {tokens}")
+    ledger, cap_calls, cap_tokens = (os.environ.get(k) for k in ("PIERRE_BUDGET_LEDGER", "PIERRE_BUDGET_MAX_CALLS", "PIERRE_BUDGET_MAX_INPUT_TOKENS"))
+    if ledger and cap_calls and cap_tokens:
+        used = json.loads(Path(ledger).read_text()) if Path(ledger).exists() else {"calls": 0, "est_input_tokens": 0}
+        left_calls, left_tokens = int(cap_calls) - used["calls"], int(cap_tokens) - used["est_input_tokens"]
+        print(f"budget left: {left_calls} calls / {left_tokens} estimated input tokens")
+        if len(fixtures) > left_calls or tokens > left_tokens:
+            raise SystemExit(f"FAIL: {len(fixtures)} calls / {tokens} tokens is over what is left of the cap.")
 
 
 def _run_fixtures(spec: dict, client, limit: int | None) -> list:
@@ -114,6 +130,7 @@ def _run_fixtures(spec: dict, client, limit: int | None) -> list:
                 "n_audits": len(res.audits),
                 "sub_verdicts": verdicts,
                 "effective_verdict": eff,
+                "error": res.error,
             }
         )
         print(
@@ -152,6 +169,7 @@ def _build_report(spec: dict, results: list) -> dict:
         "per_verdict_precision_recall": pr,
         "false_positive_fixtures": false_positives,
         "no_claim_fixtures": no_claim,
+        "errored_fixtures": [r["id"] for r in results if r.get("error")],
         "per_fixture": [
             {"id": r["id"], "label": r["label"], "effective_verdict": r["effective_verdict"]}
             for r in results
@@ -198,7 +216,7 @@ def _fmt(x, pct: bool = False) -> str:
 def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
     """Render a human-readable calibration report.
 
-    Pure string assembly from the report/snapshot dict — no Gemini, no DB. The
+    Pure string assembly from the report/snapshot dict — no model call, no DB. The
     framing is meant to be shown to a client as trust validation:
     lead with the headline trust metric + an honest "this is a baseline, not a
     green-light" caveat, then the confusion matrix + the specific defects to
@@ -224,7 +242,7 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
     lines.append(
         "> **Auto-generated** by `scripts/analysis/claim_auditor_calibration_harness.py`. "
         "Do not hand-edit — re-run the harness (`--render-md` to refresh from the "
-        "committed snapshot without Gemini, or a full capture to re-measure)."
+        "committed snapshot without a model call, or a full capture to re-measure)."
     )
     if captured_at:
         model = report.get("model")
@@ -282,6 +300,37 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
             f"false-positive rate up to ~{3 / n_legit:.0%} and a true recall down to "
             f"~{1 - 3 / n_fab:.0%} (95%, rule of three)."
         )
+        earlier_caught = [int(e["fabricated_caught"].split(" of ")[0]) for e in report.get("earlier_captures") or []]
+        worst = min([n_fab] + earlier_caught)
+        if worst < n_fab:
+            z = 1.96
+            low = (worst / n_fab + z * z / (2 * n_fab) - z * ((worst / n_fab) * (1 - worst / n_fab) / n_fab + z * z / (4 * n_fab**2)) ** 0.5) / (1 + z * z / n_fab)
+            lines.append(">")
+            lines.append(
+                f"> **Run-to-run spread.** The worst capture listed below caught {worst} of {n_fab}; a Wilson 95% bound on "
+                f"that result puts the true recall as low as ~{low:.0%}. Read the recall bound from the worst capture, not the best."
+            )
+    lines.append("")
+    nc = report.get("no_claim_fixtures") or []
+    if nc:
+        lines.append("")
+        lines.append(
+            f"> **No claim extracted.** {', '.join(f'`{i}`' for i in nc)} returned no claim from the model "
+            f"(no API error: `errored_fixtures` is {report.get('errored_fixtures')}). A fabricated fixture that returns "
+            f"no claim counts as a miss; a legitimate one counts as not flagged."
+        )
+    earlier = report.get("earlier_captures") or []
+    if earlier:
+        lines.append("")
+        lines.append("**Earlier captures** (kept so the run-to-run spread is visible; the model is not deterministic):")
+        lines.append("")
+        lines.append("| Captured | Model | False-positive rate | Fabricated caught | No-claim fixtures |")
+        lines.append("|---|---|---|---|---|")
+        for e in earlier:
+            lines.append(
+                f"| {e['captured_at']} | `{e['model']}` | {_fmt(e['fabricated_false_positive_rate'], pct=True)} | "
+                f"{e['fabricated_caught']} | {', '.join(e['no_claim_fixtures']) or 'none'} |"
+            )
     lines.append("")
     lines.append("## Confusion matrix")
     lines.append("")
@@ -327,11 +376,11 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
     lines.append("## How to reproduce")
     lines.append("")
     lines.append("```bash")
-    lines.append("# Full re-measure (needs a Gemini key, no DB):")
+    lines.append("# Full re-measure (needs an Anthropic key, no DB):")
     lines.append("python scripts/analysis/claim_auditor_calibration_harness.py")
-    lines.append("# Gate before shipping an auditor change (needs a Gemini key; exits 1 on regression):")
+    lines.append("# Gate before shipping an auditor change (needs an Anthropic key; exits 1 on regression):")
     lines.append("python scripts/analysis/claim_auditor_calibration_harness.py --check")
-    lines.append("# Refresh THIS doc from the committed snapshot (no Gemini):")
+    lines.append("# Refresh THIS doc from the committed snapshot (no model call):")
     lines.append("python scripts/analysis/claim_auditor_calibration_harness.py --render-md")
     lines.append("```")
     lines.append("")
@@ -355,7 +404,7 @@ def main() -> int:
         "--check",
         action="store_true",
         help="Compare to threshold, exit 1 if the fabricated FP-rate exceeds it. "
-        "Does NOT require exact per-fixture reproduction (Gemini isn't fully "
+        "Does NOT require exact per-fixture reproduction (the model isn't fully "
         "deterministic at temp=0).",
     )
     ap.add_argument("--limit", type=int, default=None, help="Run only the first N fixtures (smoke).")
@@ -363,12 +412,12 @@ def main() -> int:
         "--render-md",
         action="store_true",
         help="Regenerate the human-readable markdown report from the committed "
-        "snapshot JSON (no Gemini, no DB) and exit. Use to refresh the doc "
+        "snapshot JSON (no model call, no DB) and exit. Use to refresh the doc "
         "without re-measuring.",
     )
     args = ap.parse_args()
 
-    # --render-md: no Gemini, no fixtures run — just re-render the doc from the
+    # --render-md: no model call, no fixtures run — just re-render the doc from the
     # committed snapshot. Loud failure if the snapshot is missing.
     if args.render_md:
         if not _SNAPSHOT_PATH.exists():
@@ -381,14 +430,15 @@ def main() -> int:
         return 0
 
     spec = json.loads(_FIXTURES_PATH.read_text())
-    client = _build_gemini_client()
+    _preflight(spec, args.limit)
+    client = _build_client()
 
     print(f"Running auditor over {len(spec['fixtures'])} fixtures "
           f"{'(limited to %d)' % args.limit if args.limit else ''}...")
     results = _run_fixtures(spec, client, args.limit)
     report = _build_report(spec, results)
     report["captured_at"] = datetime.now(timezone.utc).isoformat()
-    report["model"] = GEMINI_MATCHING_MODEL
+    report["model"] = DEFAULT_AUDIT_MODEL
     _print_report(report)
 
     fp = report["fabricated_false_positive_rate"]
@@ -422,7 +472,7 @@ def main() -> int:
         # --- Run-VALIDITY gates (silent-failure-hunter findings #1 + #2) ---
         # A no_claim effective verdict means the auditor extracted ZERO claims
         # from a fixture — for THIS fixture set (every claim is non-trivial and
-        # every context is non-empty) that can only be a Gemini error / empty-
+        # every context is non-empty) that can only be a model-call error / empty-
         # context short-circuit / unparseable-JSON, NOT a legitimate "no
         # checkable claim". Such an errored fixture is counted as a benign
         # result by the FP-rate denominator → errors would SILENTLY IMPROVE the
@@ -514,6 +564,23 @@ def main() -> int:
             f"FP-rate is deflated by these — re-run a clean capture before trusting "
             f"the snapshot. (--check would FAIL on this run.)"
         )
+    if args.limit and args.limit < len(spec["fixtures"]):
+        print("\n--limit smoke run: the snapshot and report are NOT written.")
+        return 0
+    if _SNAPSHOT_PATH.exists():
+        # Carry the previous capture forward so the run-to-run spread stays visible in the report.
+        prev = json.loads(_SNAPSHOT_PATH.read_text())
+        caught = prev["confusion_matrix"]["fabricated"]
+        report["earlier_captures"] = list(prev.get("earlier_captures", [])) + [
+            {
+                "captured_at": prev["captured_at"],
+                "model": prev["model"],
+                "fabricated_false_positive_rate": prev["fabricated_false_positive_rate"],
+                "fabricated_recall": prev["fabricated_recall"],
+                "fabricated_caught": f"{caught['fabricated']} of {sum(caught.values())}",
+                "no_claim_fixtures": prev.get("no_claim_fixtures", []),
+            }
+        ]
     _SNAPSHOT_PATH.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     print(f"\nWrote snapshot → {_SNAPSHOT_PATH.relative_to(Path.cwd()) if _SNAPSHOT_PATH.is_relative_to(Path.cwd()) else _SNAPSHOT_PATH}")
     # Also refresh the human-readable report so the doc

@@ -1,0 +1,26 @@
+{
+ "estimate": {
+  "calls": 648,
+  "cap_calls": 972,
+  "cap_input_tokens": 6696000,
+  "est_input_tokens": 4464000,
+  "sessions": 84,
+  "turns": 108
+ },
+ "metered_ledger": {
+  "billed_input_tokens": 1315233,
+  "calls": 352,
+  "est_input_tokens": 864412,
+  "output_tokens": 145605
+ },
+ "runs": [
+  {
+   "at": "2026-11-13T12:11:46.541142+00:00",
+   "ran": 84,
+   "skipped_complete": 0,
+   "status": "complete"
+  }
+ ],
+ "wilco_commit": "5cde95d9207666a925562f9b67143ca465ec5120",
+ "workers": 3
+}
