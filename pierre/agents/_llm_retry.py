@@ -36,6 +36,8 @@ import logging
 import time
 from typing import Any, Callable, Optional, Tuple, Type
 
+from pierre.agent.timeouts import is_timeout
+
 logger = logging.getLogger(__name__)
 
 # Defaults — kept here so callers don't have to invent their own numbers.
@@ -158,6 +160,8 @@ def _call_with_api_backoff(
             return call_fn()
         except Exception as exc:  # transient API / transport error
             last_exc = exc
+            if is_timeout(exc):  # a timed-out call is not retried: it ends the agent turn (pierre/agent/timeouts.py)
+                raise
             if attempt < api_attempts - 1:
                 delay = _backoff_delay(attempt, base_delay, max_delay)
                 logger.warning(

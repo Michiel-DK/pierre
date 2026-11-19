@@ -4,10 +4,11 @@ from __future__ import annotations
 import logging
 import re
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import time
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 from pierre.agent import _formatters as F
+from pierre.agent import obs, timeouts
 from pierre.agent._dispatch_dedup import CallDeduper, canonicalise_args
 from pierre.agent.backend import AS_OF
 
@@ -234,10 +235,12 @@ class ToolDispatcher:
         tool_functions: Mapping[str, Callable[..., Any]],
         deduper: Optional[CallDeduper] = None,
         max_workers: int = 6,
+        tool_timeout_s: Optional[float] = timeouts.TOOL_TIMEOUT_S,
     ) -> None:
         self.tool_functions = dict(tool_functions)
         self.deduper = deduper
         self.max_workers = max_workers
+        self.tool_timeout_s = tool_timeout_s
         self.dedup_hits = 0
         self._lock = threading.Lock()
 
@@ -247,8 +250,19 @@ class ToolDispatcher:
         self.dedup_hits = 0
 
     def execute(self, tool_name: str, args: Dict[str, Any]) -> Any:
+        attrs = {"gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": tool_name, "gen_ai.tool.type": "function"}
+        with obs.span(f"execute_tool {tool_name}", attrs) as sp:
+            error_type, result = self._execute(tool_name, args, sp)
+            if error_type is None and isinstance(result, dict) and "error" in result:
+                error_type = "tool_error"  # the tool reported the failure itself; the model sees it as is_error
+            if error_type is not None:
+                sp.error(error_type)
+            return result
+
+    def _execute(self, tool_name: str, args: Dict[str, Any], sp: Any) -> Tuple[Optional[str], Any]:
+        """(error type for the span, result). The result is exactly what the model sees; the span never adds to it."""
         if tool_name not in self.tool_functions:
-            return {"error": f"Unknown tool: {tool_name}"}
+            return "unknown_tool", {"error": f"Unknown tool: {tool_name}"}
 
         if self.deduper is not None:
             seen, cached = self.deduper.observe(tool_name, args)
@@ -260,17 +274,59 @@ class ToolDispatcher:
                 )
                 with self._lock:
                     self.dedup_hits += 1
-                return cached
+                sp.set("pierre.tool.dedup_hit", True)
+                return None, cached
 
+        error_type = None
         try:
             result = self.tool_functions[tool_name](**args)
         except Exception as exc:
             logger.error("Tool execution failed (%s): %s", tool_name, exc)
+            error_type = type(exc).__name__
             result = {"error": f"Tool '{tool_name}' encountered an internal error. Please try rephrasing your question."}
 
         if self.deduper is not None:
             self.deduper.record(tool_name, args, result)
-        return result
+        return error_type, result
+
+    def _run_concurrently(self, jobs: List[Tuple[int, str, Dict[str, Any]]]) -> Dict[int, Any]:
+        """One daemon thread per call, started in call order; each tool runs inline in its thread.
+
+        The deadline is enforced here, by the joiner: ``tool_timeout_s`` counts from the start of the batch, and a call
+        still running at its deadline raises ``ToolTimeout`` (the thread is abandoned, not killed; a tool that writes
+        may still write). A tool does not get an extra thread of its own: that would reorder parallel writes.
+        """
+        ctx = obs.capture()  # worker threads do not inherit the span context; tool spans stay children of the turn
+        slots = threading.Semaphore(self.max_workers)
+        started = time.monotonic()
+        running: List[Tuple[int, str, threading.Thread, Dict[str, Any]]] = []
+        for idx, name, args in jobs:
+            box: Dict[str, Any] = {}
+
+            def work(name: str = name, args: Dict[str, Any] = args, box: Dict[str, Any] = box) -> None:
+                with slots:
+                    try:
+                        box["value"] = obs.run_in(ctx, self.execute, name, args)
+                    except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread below
+                        box["error"] = exc
+
+            thread = threading.Thread(target=work, daemon=True, name="pierre-tool")
+            thread.start()
+            running.append((idx, name, thread, box))
+        out: Dict[int, Any] = {}
+        for idx, name, thread, box in running:
+            left = None if self.tool_timeout_s is None else max(0.0, started + self.tool_timeout_s - time.monotonic())
+            thread.join(left)
+            if thread.is_alive():
+                logger.error("Tool %s timed out after %ss", name, self.tool_timeout_s)
+                attrs = {"gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": name, "gen_ai.tool.type": "function"}
+                with obs.span(f"execute_tool {name}", attrs) as sp:  # the abandoned thread's own span ends when (if) the tool returns
+                    sp.error("timeout")
+                raise timeouts.ToolTimeout(name, self.tool_timeout_s or 0)
+            if "error" in box:
+                raise box["error"]
+            out[idx] = box["value"]
+        return out
 
     def execute_parallel(self, calls: List[Tuple[str, Dict[str, Any]]]) -> List[Any]:
         """Run one turn's calls concurrently; results come back in call order.
@@ -293,10 +349,7 @@ class ToolDispatcher:
                 first_index[key] = idx
             to_run.append(idx)
         if to_run:
-            with ThreadPoolExecutor(max_workers=min(len(to_run), self.max_workers)) as pool:
-                futures = {pool.submit(self.execute, calls[i][0], dict(calls[i][1])): i for i in to_run}
-                for future, idx in futures.items():
-                    results[idx] = future.result()
+            results.update(self._run_concurrently([(i, calls[i][0], dict(calls[i][1])) for i in to_run]))
         for idx, source in repeat_of.items():
             results[idx] = results[source]
             with self._lock:

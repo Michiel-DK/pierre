@@ -2,7 +2,7 @@
 
 > **Auto-generated** by `scripts/analysis/agent_eval.py render-md` (run by `make reports`) from the committed traces in `data/agent_eval/traces/`,
 > the committed wilco grades in `data/agent_eval/grades/` and `data/agent_eval/run_summary.json`. No model is called. Do not hand-edit; the one hand-written section is in the generator and prints only for the run it describes.
-> Predictions were committed before the run: [agent_eval_predictions.md](agent_eval_predictions.md).
+> Predictions were committed before the run (that order is in a private source repository; the predictions file says where): [agent_eval_predictions.md](agent_eval_predictions.md).
 
 ## What ran
 
@@ -78,6 +78,8 @@ A prediction outside its written range is refuted. The file with the predictions
 | P18 | `recent-climate-deals` fails `args_match` on at least one model | yes | 1 session(s) | held |
 | P19 | billed input tokens over the estimate (metered) | 1.3x to 1.8x | 1.52x | inside range |
 
+Note, 19 Nov 2026: P10 and P12 keep their scores as measured, but 3 of their 4 turns are a known false positive of the audit context. In those turns the first draft's only `fabricated` claim names a firm that `lookup_firm` listed under `other_matches` (for example "The name also matches another firm, Tessaly Growth."), and the audit context of this run did not pass `other_matches` to the auditor, so the true claim had no evidence. The repair round of each of those turns repaired a draft whose only flagged claim was true. The audit context now passes it; this run was not repeated. See the corrected rate below.
+
 ## The fact-checker and the repair loop (pierre's own numbers)
 
 The auditor is a model and an imperfect judge. Its calibration on the 57-claim set: 0 of 38 legitimate claims flagged `fabricated` (a true rate up to about 8% is not excluded), and the worst of two captures caught 17 of 19 fabricated claims (a true recall down to about 69%, Wilson 95%). On agent-built contexts only a 12-claim spot check exists, which bounds nothing. Its verdicts below are counts, never pass/fail.
@@ -122,11 +124,13 @@ Each turn's first draft was graded by wilco in place of its final answer (same c
 The share of first-draft claims the auditor called `fabricated`: **4 of 692 (0.6%)**, Wilson 95% 0.2% to 1.5% (claims within one answer are not independent, so read that as narrower than it is).
 
 Correcting for the auditor's own errors with the 57-claim calibration (observed = true x recall + (1 - true) x false-positive rate):
-- point (recall 19 of 19, false positives 0 of 38): true rate about **0.6%**
+- point (recall 19 of 19, false positives 0 of 38): true rate about **0.6%** if every flag were real; see the note below
 - upper (the worst capture's recall 17 of 19): up to about **0.6%**
 - lower (false positives at the rule-of-three ceiling of 7.9%): down to about **0.0%**
 
 This is a bound built from a 57-claim, author-labelled set on a different kind of context (single-firm report contexts, not tool-result contexts). It is an imperfect judge's rate with its calibration slack, not a measurement of how often the agent invents facts.
+
+Note, 19 Nov 2026: 3 of the 4 flagged claims are a known false positive of the audit context (`other_matches` of `lookup_firm` did not reach the auditor; see the note under the predictions table). The calibration above did not cover that cause, so the corrections read all 4 flags as real, and about 0.6% is an upper bound, not a true rate. Without them, 1 of 692 first-draft claims stays flagged, so at most 1 of 692 is a fabrication the auditor caught.
 
 ## Failures: first failing turn, and stage
 

@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
+from pierre.agent import timeouts
+
 
 class BudgetExceeded(RuntimeError):
     abort_run = True  # the claim auditor re-raises these instead of reporting an audit error
@@ -61,8 +63,9 @@ class BudgetedClient:
                 self._write(ledger)
             try:
                 response = self.inner.messages.create(**kwargs)
-            except self._retryable:
-                if attempt == self.retries:
+            except self._retryable as exc:
+                # The SDK's APITimeoutError subclasses APIConnectionError: a timed-out call must end the turn, not be tried again.
+                if attempt == self.retries or timeouts.is_timeout(exc):
                     raise
                 self._sleep(2.0 * (attempt + 1))
                 continue
@@ -82,7 +85,8 @@ class BudgetedClient:
 def client_from_env() -> Any:
     """A live client from ``ANTHROPIC_API_KEY``, capped when ``PIERRE_BUDGET_LEDGER`` is set.
 
-    The SDK's own retries are off (``max_retries=0``) so that BudgetedClient counts every attempt.
+    The SDK's own retries are off (``max_retries=0``) so that BudgetedClient counts every attempt. The timeout is
+    explicit (``timeouts.MODEL_TIMEOUT_S`` read, 5 s connect); the SDK default would be 600 s.
     The cap comes from ``PIERRE_BUDGET_MAX_CALLS`` and ``PIERRE_BUDGET_MAX_INPUT_TOKENS``.
     """
     import os
@@ -91,7 +95,9 @@ def client_from_env() -> Any:
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise SystemExit("ANTHROPIC_API_KEY is not set: a live run needs a key in this process's environment.")
-    client = anthropic.Anthropic(max_retries=0)
+    client = anthropic.Anthropic(
+        max_retries=0, timeout=anthropic.Timeout(timeouts.MODEL_TIMEOUT_S, connect=timeouts.CONNECT_TIMEOUT_S)
+    )
     ledger = os.environ.get("PIERRE_BUDGET_LEDGER")
     if not ledger:
         return client

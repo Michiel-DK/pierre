@@ -37,6 +37,7 @@ def make_audit_fn(client: Any, model: str = DEFAULT_AUDIT_MODEL, context_fn: Any
             ],
             "error": result.error,
             "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+            "model": model,  # for the audit span; not written to the trace
         }
 
     return audit
@@ -58,6 +59,7 @@ def case_inputs(case: Dict[str, Any]) -> List[str]:
 def run_case(client: Any, case: Dict[str, Any], writer: TraceWriter, model: str = DEFAULT_MODEL) -> List[TurnResult]:
     """Run every turn of a case in one session and write its trace. The last turn also records the final state."""
     session = new_session(client, model=model)
+    session.conversation_id = writer.session_id
     inputs = case_inputs(case)
     results = []
     for i, text in enumerate(inputs):

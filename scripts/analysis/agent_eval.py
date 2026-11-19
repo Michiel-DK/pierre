@@ -85,7 +85,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"[{done['n']}] {s.model} {s.case_id} r{s.repeat}: {len(results)} turns, termination {terms}", flush=True)
 
     try:
-        counts = run_all(client, cases, sessions, TRACES, workers=args.workers, on_done=on_done)
+        counts = run_all(client, cases, sessions, TRACES, workers=args.workers, on_done=on_done, live=True)
         status = "complete"
     except BudgetExceeded as exc:
         counts, status = {"ran": done["n"], "skipped_complete": 0}, f"ABORTED at the cap: {exc}"

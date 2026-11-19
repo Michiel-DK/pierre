@@ -3,7 +3,8 @@
 > Hand-written. The commit that adds this file was pushed before the first live call of `make agent-eval`. This repo is a
 > cut from a private source repo, so that order is checkable there, not in this repo's history: the predictions commit `3e748ee`
 > is dated 2026-11-13 11:59:22 UTC, and the live run completed at 12:11:46 UTC (`data/agent_eval/run_summary.json`). The source
-> history can be shown on request (this sentence on where the order is checkable was added after the run). Nothing below was edited after the run. The result report is
+> history can be shown on request (this sentence on where the order is checkable was added after the run). Below, only the wording listed in the erratum just
+> below was edited after the run (this sentence first read "Nothing below was edited after the run"; narrowed on 19 Nov 2026). The result report is
 > `agent_eval_report.md`; where it disagrees with this file, this file stays as written and the report says so.
 >
 > **Erratum, 13 Nov 2026 (after the run): wording only.** References to unpublished planning notes were reworded for

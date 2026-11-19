@@ -4,7 +4,14 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
-_PROFILE_KEYS = ("firm_name", "hq", "stages", "focus_areas", "description", "portfolio_count", "fit_note")
+# Every firm fact a tool result shows the agent, so a true claim about it has evidence. other_matches (lookup_firm): the
+# other firms the name matched. geographies and the fund-size keys (compare_firms). Empty values are dropped, as before.
+# Not here yet: lookup_firm's category and list_shortlist's firm_status. Adding them changes the recorded auditor requests,
+# and the recordings can only be made again with live calls.
+_PROFILE_KEYS = (
+    "firm_name", "hq", "stages", "focus_areas", "description", "portfolio_count", "fit_note", "other_matches",
+    "geographies", "latest_fund_size", "latest_fund_date", "fund_size_label", "fund_size_source",
+)
 
 
 def _cheque(source: Dict[str, Any]) -> str | None:

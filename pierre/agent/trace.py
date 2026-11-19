@@ -42,8 +42,13 @@ class TraceWriter:
         runtime: Optional[Dict[str, Any]] = None,
         clock: Optional[Callable[[], str]] = None,
         task: str = TASK,
+        live: bool = False,
+        provider: str = "anthropic",
     ) -> None:
-        self.task = task
+        # live: a run against the real API. Only then does wall-clock latency go into meta (``meta.latency_ms``);
+        # a replay leaves it out, so replayed traces stay byte-equal to the committed ones. ``ts`` keeps its clock.
+        # ``meta.cost`` follows the same rule: tokens x prices.json, written only on a live run.
+        self.task, self.live, self.provider = task, live, provider
         self.path = Path(path)
         self.session_id, self.case_id, self.split, self.repeat = session_id, case_id, split, repeat
         self.runtime = runtime or {}
@@ -67,7 +72,7 @@ class TraceWriter:
             "tool_calls": result.tool_calls,
             "tool_results": result.tool_results,
             "model": result.model or "unknown",
-            "provider": "anthropic",
+            "provider": self.provider,
             "runtime": self.runtime,
             "steps": max(result.steps, 1),
             # wilco force-fails a turn that carries `termination`. `repair_cap` is the auditor (a model) still
@@ -88,6 +93,13 @@ class TraceWriter:
                 "auditor_usage": result.auditor_usage,
             },
         }
+        if self.live:
+            record["meta"]["latency_ms"] = {
+                "turn": result.latency_ms,
+                "model_calls": result.model_latency_ms,
+                "auditor_calls": result.auditor_latency_ms,
+            }
+            record["meta"]["cost"] = result.cost  # None (null) when a model has no price row
         if meta_extra:
             record["meta"].update(meta_extra)
         if result.termination == "repair_cap":

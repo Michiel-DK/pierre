@@ -1,0 +1,5 @@
+{
+  "date": "2026-11-17",
+  "file": "canary/thresholds.json",
+  "note": "the date (UTC) on which the thresholds were added. Every row of metrics.jsonl must be dated on or after it, and a test checks that. The first row has the same date. The commit that added the thresholds, its date and that it came before the first row are in a private source repository and can be shown on request."
+}

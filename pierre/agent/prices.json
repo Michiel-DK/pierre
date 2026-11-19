@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-11-16",
+  "currency": "USD",
+  "unit": "per million tokens",
+  "note": "Standard (global, non-batch) API prices, read from the provider's pricing page on the date in as_of. Cache reads on these two models are 0.05x the base input price (footnote 2 on the page). No long-context surcharge applies to either. A model with no row here has no cost: the code returns null and warns, it never guesses.",
+  "models": {
+    "claude-opus-5-5": {
+      "input": 4,
+      "cache_write_5m": 5,
+      "cache_write_1h": 8,
+      "cache_read": 0.2,
+      "output": 20,
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "read_on": "2026-11-16"
+    },
+    "claude-sonnet-5-5": {
+      "input": 2,
+      "cache_write_5m": 2.5,
+      "cache_write_1h": 4,
+      "cache_read": 0.1,
+      "output": 10,
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "read_on": "2026-11-16"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_comment": "Alert thresholds for make canary-check, dated 2026-11-17 in canary/thresholds_added.json, the date of the first canary row; the commit order within that day is in a private source repository and can be shown on request. The traffic is a scheduled canary of 5 held-out cases, not users.",
+  "baseline_rows": 7,
+  "pass_drop": {"drop": 2, "consecutive_runs": 2},
+  "cost": {"field": "cost_per_turn_usd_p50", "factor": 1.5},
+  "terminations": {"causes": ["timeout", "max_tokens"]},
+  "change": {"fields": ["model", "sdk"], "exit_code": 3}
+}

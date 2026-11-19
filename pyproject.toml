@@ -18,6 +18,11 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest==9.2.0"]
 anchor = ["agentdojo==0.1.35"]
+# OpenTelemetry spans for the agent (pierre/agent/obs.py). Without it the agent runs as before and writes no spans.
+# The API package already comes with anthropic; the SDK is what this extra adds.
+obs = ["opentelemetry-api==1.45.2", "opentelemetry-sdk==1.45.2"]
+# The second span exporter (OTLP over HTTP/protobuf), for the local Langfuse dashboard (docs/observability/langfuse.md).
+langfuse = ["opentelemetry-exporter-otlp-proto-http==1.45.2"]
 # The wilco commit that grades the agent traces. `make install-eval` installs this same commit as an editable
 # checkout (the wilco package is a shim over its checkout, so a plain install of this line alone cannot grade).
 eval = ["wilco-exams @ git+https://github.com/Michiel-DK/wilco@5cde95d9207666a925562f9b67143ca465ec5120"]

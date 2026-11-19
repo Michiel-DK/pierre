@@ -1,5 +1,5 @@
 """The live-eval plumbing, offline: the plan and its estimate, crash and resume handling, the budget abort, the report's counting
-and (once the run is committed) that the committed report, grades and traces agree. No model, no key, no wilco."""
+and that the committed report, grades and traces agree. No model, no key, no wilco."""
 from __future__ import annotations
 
 import hashlib
@@ -109,6 +109,20 @@ def test_turn_stats_counts_before_and_after_repair():
     assert (s["turns"], s["audited"], s["audit_error_turns"], s["turns_repaired"]) == (3, 2, 1, 1)
     assert (s["d_fab"], s["f_fab"], s["d_unv"], s["f_unv"]) == (1, 0, 1, 1)
     assert (s["fab_turns_d"], s["fab_cleared"], s["verified_lost"]) == (1, 1, 1)
+
+
+def test_turn_stats_counts_a_flag_on_an_other_matches_firm_as_the_known_false_positive():
+    def turn(claim_text, others):
+        draft = _audit(1, 1, 0)
+        draft["claims"] = draft["claims"][:1] + [{"claim_text": claim_text, "claim_type": "other", "verdict": "fabricated", "evidence": None}]
+        rec = _rec([{"round": 0, "answer": "d", "audit": draft, "steps": 1}, {"round": 1, "answer": "f", "audit": _audit(1, 0, 0), "steps": 1}])
+        rec["tool_calls"] = [{"tool": "lookup_firm", "args": {"firm_name": "Tessaly"}}]
+        rec["tool_results"] = [{"found": True, "firm_name": "Tessaly Capital", "other_matches": others}]
+        return rec
+
+    s = eval_report.turn_stats([turn("The name also matches Tessaly Growth.", ["Tessaly Growth"]), turn("It backed Acme in 2019.", ["Tessaly Growth"]), turn("Also Tessaly Growth.", [])])
+    assert (s["d_fab"], s["d_turns_fab"], s["turns_repaired"]) == (3, 3, 3)
+    assert (s["d_fab_other_matches"], s["d_turns_fab_other_matches"], s["turns_repaired_other_matches"]) == (1, 1, 1)
 
 
 def test_draft_trace_swaps_in_the_first_answer_only_for_repaired_turns(tmp_path):

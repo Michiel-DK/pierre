@@ -123,3 +123,81 @@ def test_wilson_matches_and_summary():
     ]
     s = summarise(rows)
     assert s["utility"]["n"] == 1 and s["attack_success"]["k"] == 1 and s["repair"]["repair_moved_toward_injection"] == 1 and s["infra_errors"] == ["c"]
+
+
+# --- the full-suite runner: resume, plan, cap (no key, no model call) ---
+
+import hashlib  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "analysis"))
+import public_anchor_agentdojo as runner  # noqa: E402
+
+# sha256 of the 48 rows committed on 13 Nov (the first 48 lines of the sessions file; later lines are appended after them)
+SLICE_SHA256 = "f9f8b90131be9dcfc39e4db778e07e3d1018caccbb232d1fe90169eb8034cf45"
+
+
+def _slice_lines():
+    return runner.SESSIONS.read_text().splitlines(keepends=True)[: runner.SLICE_SESSIONS]
+
+
+def test_the_48_committed_rows_are_byte_for_byte_what_they_were_on_13_nov():
+    lines = _slice_lines()
+    assert len(lines) == 48 and hashlib.sha256("".join(lines).encode()).hexdigest() == SLICE_SHA256
+    rows = [json.loads(x) for x in lines]
+    assert all(json.dumps(r, sort_keys=True) + "\n" == x for r, x in zip(rows, lines))  # they round-trip unchanged
+
+
+def test_the_plan_is_160_and_what_is_left_after_the_committed_slice_is_exactly_the_112():
+    plan = runner.planned(SUITE)
+    assert len(plan) == 160 and len(set(plan)) == 160
+    assert plan[:16] == [(f"user_task_{n}", None) for n in range(16)]
+    assert [i for _, i in plan[16:25]] == [f"injection_task_{n}" for n in range(9)]  # numeric id order, not lexicographic
+    committed = [json.loads(x) for x in _slice_lines()]
+    left = runner.pending(plan, committed)
+    assert len(left) == 112
+    want = {(f"user_task_{u}", f"injection_task_{i}") for u in range(16) for i in range(2, 9)}
+    assert set(left) == want
+
+
+def test_resume_runs_only_the_pending_sessions_and_never_rewrites_a_committed_row(tmp_path):
+    path = tmp_path / "sessions.jsonl"
+    seed = "".join(_slice_lines())
+    path.write_text(seed)
+    plan = runner.planned(SUITE)
+    seen = []
+
+    def fake_run(u, i):
+        seen.append((u, i))
+        return {"key": runner.key_of(u, i), "user_task": u, "injection_task": i, "utility": True, "security": False}
+
+    assert runner.run_todo(runner.pending(plan, runner.load_sessions_from(path)), fake_run, path) == 0
+    assert len(seen) == 112 and not (set(seen) & {(r["user_task"], r["injection_task"]) for r in map(json.loads, seed.splitlines())})
+    text = path.read_text()
+    assert text.startswith(seed) and len(text.splitlines()) == 160
+    assert runner.run_todo(runner.pending(plan, runner.load_sessions_from(path)), fake_run, path) == 0 and len(seen) == 112  # a second pass runs nothing
+
+
+def test_an_infra_error_row_is_retried_and_the_report_takes_the_later_good_row():
+    bad = {"key": "banking/user_task_1/injection_task_2", "user_task": "user_task_1", "injection_task": "injection_task_2", "infra_error": "X"}
+    assert ("user_task_1", "injection_task_2") in runner.pending([("user_task_1", "injection_task_2")], [bad])
+    good = dict(bad, utility=True, security=False)
+    good.pop("infra_error")
+    assert runner.effective([bad, good]) == [good]
+
+
+def test_the_cap_is_inside_the_ceiling_and_above_the_old_cap_and_the_slice_ledger_constant_is_180_calls():
+    assert runner.MAX_CALLS <= runner.CEILING[0] and runner.MAX_INPUT_TOKENS <= runner.CEILING[1]
+    assert runner.MAX_CALLS > runner.OLD_CAP[0] and runner.SLICE_LEDGER["calls"] == 180
+
+
+def test_the_slice_numbers_in_the_report_are_the_13_nov_numbers_whatever_is_appended():
+    rows = [json.loads(x) for x in _slice_lines()]
+    extra = {"key": "banking/user_task_1/injection_task_2", "user_task": "user_task_1", "injection_task": "injection_task_2", "injectable": True,
+             "utility": False, "security": True, "steps": 2, "repair_rounds": 0, "auditor_calls": 1, "unverifiable": 0, "fabricated_first": 0,
+             "toward_round": 0, "first_failing_step": "x"}
+    text = runner.render(rows + [extra], dict(runner.SLICE_LEDGER), "")
+    assert "| utility without injection | 16/16 = 100.0% (95% Wilson 80.6% to 100.0%) |" in text
+    assert "| targeted attack success (security check true) | 0/32 = 0.0% (95% Wilson 0.0% to 10.7%) | 1/33" in text
+    assert "| utility under attack | 30/32 = 93.8% (95% Wilson 79.9% to 98.3%) |" in text

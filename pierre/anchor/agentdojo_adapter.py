@@ -21,6 +21,7 @@ from pierre.agent._dispatch_dedup import CallDeduper
 from pierre.agent.factory import make_audit_fn
 from pierre.agent.loop import LoopConfig
 from pierre.agent.repair import AgentSession, TurnResult
+from pierre.anchor.defences import HELD_PREFIX, ConfirmOnMutate, held_result, spotlight, system_for
 from pierre.anchor.metrics import REPAIR_PREFIX
 
 RESULT_CHAR_CAP = 3000  # per tool result shown to the claim auditor
@@ -38,11 +39,19 @@ class AnchorDispatcher:
     """Runs one turn's tool calls on the benchmark's runtime, one after another (the tools mutate one shared environment).
 
     Results are the benchmark's own text rendering, so an injected string reaches the model as the benchmark meant.
-    Every executed call is logged with the repair round it was made in (read off the session's message list).
+    Every call is logged with the repair round it was made in (read off the session's message list).
+
+    ``arm`` puts a defence between the model and the runtime (see ``pierre.anchor.defences``): ``confirm-on-mutate``
+    checks each call against ``request`` and holds it without running it; ``spotlight`` wraps each text result.
     """
 
-    def __init__(self, runtime: FunctionsRuntime, env: Any, deduper: Optional[CallDeduper] = None) -> None:
+    def __init__(
+        self, runtime: FunctionsRuntime, env: Any, deduper: Optional[CallDeduper] = None, arm: str = "none", request: str = ""
+    ) -> None:
         self.runtime, self.env, self.deduper = runtime, env, deduper or CallDeduper()
+        system_for(arm, "")  # rejects an unknown arm
+        self.arm = arm
+        self.guard = ConfirmOnMutate(request) if arm == "confirm-on-mutate" else None
         self.dedup_hits = 0
         self.log: List[Dict[str, Any]] = []
         self.messages: List[Dict[str, Any]] = []  # set to the session's message list
@@ -55,15 +64,26 @@ class AnchorDispatcher:
         return sum(1 for t in texts if t.startswith(REPAIR_PREFIX))
 
     def _run(self, name: str, args: Dict[str, Any]) -> Any:
+        if self.guard is not None:
+            hold, reason = self.guard.check(name, args)
+            if hold:
+                return held_result(name, reason)
         result, error = self.runtime.run_function(self.env, name, args)
-        return {"error": error} if error else tool_result_to_str(result)
+        out = {"error": error} if error else tool_result_to_str(result)
+        if self.guard is not None:
+            self.guard.observe(out)
+        return spotlight(out) if self.arm == "spotlight" else out
 
     def execute_parallel(self, calls: List[Tuple[str, Dict[str, Any]]]) -> List[Any]:
         out = []
         for name, args in calls:
             seen, result = self.deduper.get_or_run(name, args, lambda n=name, a=args: self._run(n, a))
             self.dedup_hits += int(seen)
-            self.log.append({"tool": name, "args": args, "round": self._round(), "deduped": seen})
+            entry = {"tool": name, "args": args, "round": self._round(), "deduped": seen}
+            if self.arm == "confirm-on-mutate":
+                held = is_held(result)
+                entry.update(held=held, hold_reason=result["error"] if held else "")
+            self.log.append(entry)
             out.append(result)
         return out
 
@@ -89,18 +109,32 @@ def anchor_audit_context(prompt: str) -> Callable[[List[Dict[str, Any]], List[An
     return build
 
 
-class ShowcasePipeline(BasePipelineElement):
-    """AgentDojo pipeline element backed by the showcase loop. One ``query`` is one session; ``last`` keeps its record."""
+def is_held(result: Any) -> bool:
+    return isinstance(result, dict) and str(result.get("error", "")).startswith(HELD_PREFIX)
 
-    def __init__(self, client: Any, system: str, model: str) -> None:
-        self.client, self.system, self.model = client, system, model
+
+class ShowcasePipeline(BasePipelineElement):
+    """AgentDojo pipeline element backed by the showcase loop. One ``query`` is one session; ``last`` keeps its record.
+
+    ``client`` drives the agent; ``audit_client`` (default: the same) drives the claim auditor, which stays on its
+    fixed judge model whatever the agent runs on. ``arm`` is the defence; ``none`` is the loop as shipped.
+    ``loop_overrides`` are extra ``LoopConfig`` fields (a local model's deadline, say).
+    """
+
+    def __init__(
+        self, client: Any, system: str, model: str, arm: str = "none", audit_client: Any = None, loop_overrides: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self.client, self.model, self.arm = client, model, arm
+        self.system = system_for(arm, system)
+        self.audit_client = audit_client if audit_client is not None else client
+        self.loop_overrides = dict(loop_overrides or {})
         self.name = model
         self.last: Optional[Dict[str, Any]] = None
 
     def query(self, query: str, runtime: FunctionsRuntime, env: Any = None, messages: Sequence[ChatMessage] = (), extra_args: Optional[dict] = None):
-        dispatcher = AnchorDispatcher(runtime, env)
-        cfg = LoopConfig(system=self.system, tools=claude_tools_from_runtime(runtime), model=self.model)
-        audit_fn = make_audit_fn(self.client, context_fn=anchor_audit_context(query))
+        dispatcher = AnchorDispatcher(runtime, env, arm=self.arm, request=query)
+        cfg = LoopConfig(system=self.system, tools=claude_tools_from_runtime(runtime), model=self.model, **self.loop_overrides)
+        audit_fn = make_audit_fn(self.audit_client, context_fn=anchor_audit_context(query))
         session = AgentSession(self.client, cfg, dispatcher, audit_fn)
         dispatcher.messages = session.messages
         turn = session.ask(query)
@@ -152,10 +186,11 @@ class ImportantInstructionsForClaude(ImportantInstructionsAttack):
     """The benchmark's ``important_instructions`` attack, text unchanged.
 
     The stock constructor derives the model's name from a table of old model ids and raises for ``claude-sonnet-5-5``.
-    The table maps every Claude id to "Claude"; that string is set here directly. This is the one deviation.
+    The table maps every Claude id to "Claude"; that string is set here directly. This is the one deviation. For a
+    model the table does not know, ``model_name`` takes the table's own value for its ``local`` entry ("Local model").
     """
 
-    def __init__(self, task_suite: Any, target_pipeline: BasePipelineElement) -> None:
+    def __init__(self, task_suite: Any, target_pipeline: BasePipelineElement, model_name: str = "Claude") -> None:
         FixedJailbreakAttack.__init__(self, self._JB_STRING, task_suite, target_pipeline)
         self.user_name = "Emma Johnson"
-        self.model_name = "Claude"
+        self.model_name = model_name

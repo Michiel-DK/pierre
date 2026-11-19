@@ -25,7 +25,7 @@ STAGES: Dict[str, str] = {
     "scope_coverage": "output handling",
 }
 STAGE_ORDER = ("selection", "arguments", "execution", "output handling", "unmapped")
-LOOP_STOPS = ("iteration_cap", "max_tokens", "refusal", "unexpected_pause_turn")
+LOOP_STOPS = ("iteration_cap", "max_tokens", "refusal", "unexpected_pause_turn", "timeout")
 # The claim auditor's calibration bound (docs/calibration/claim_auditor_calibration_report.md): 0 of 38 legitimate claims
 # flagged fabricated, and the worst capture caught 17 of 19 fabricated claims.
 AUDITOR_FP_CEILING = 3 / 38  # rule of three on 0 of 38: about 7.9%
@@ -164,6 +164,16 @@ def turn_stats(records: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
                 s[tag + "_ver"] += a["verified"]
                 s[tag + "_turns_fab"] += 1 if a["fabricated"] else 0
                 s[tag + "_turns_unsup"] += 1 if (a["fabricated"] or a["unverifiable"]) else 0
+            # The known false positive of the audit context before 19 Nov 2026: a first-draft claim flagged `fabricated`
+            # that names a firm the turn's lookup_firm listed under other_matches, a key the auditor did not receive.
+            others = {n for c, r in zip(rec.get("tool_calls") or [], rec.get("tool_results") or [])
+                      if c.get("tool") == "lookup_firm" and isinstance(r, dict) for n in r.get("other_matches") or [] if n}
+            fab = [c for c in first["claims"] if c.get("verdict") == "fabricated"]
+            known = [c for c in fab if any(n in (c.get("claim_text") or "") for n in others)]
+            s["d_fab_other_matches"] += len(known)
+            if fab and len(known) == len(fab):
+                s["d_turns_fab_other_matches"] += 1
+                s["turns_repaired_other_matches"] += 1 if n_rep else 0
             if first["fabricated"]:
                 s["fab_turns_d"] += 1
                 s["fab_cleared"] += 0 if last["fabricated"] else 1
@@ -347,7 +357,7 @@ def render(data_dir: Path, cases_path: Path, wilco_sha: str) -> str:
     w("")
     w("> **Auto-generated** by `scripts/analysis/agent_eval.py render-md` (run by `make reports`) from the committed traces in `data/agent_eval/traces/`,")
     w("> the committed wilco grades in `data/agent_eval/grades/` and `data/agent_eval/run_summary.json`. No model is called. Do not hand-edit; the one hand-written section is in the generator and prints only for the run it describes.")
-    w("> Predictions were committed before the run: [agent_eval_predictions.md](agent_eval_predictions.md).")
+    w("> Predictions were committed before the run (that order is in a private source repository; the predictions file says where): [agent_eval_predictions.md](agent_eval_predictions.md).")
     w("")
     w("## What ran")
     w("")
@@ -405,6 +415,14 @@ def render(data_dir: Path, cases_path: Path, wilco_sha: str) -> str:
     for r in evaluate_predictions(ctx):
         w(f"| {r['id']} | {r['what']} | {r['pred']} | {r['obs']} | {r['verdict']} |")
     w("")
+    if stats_all.get("d_turns_fab_other_matches"):
+        k, n_fab = stats_all["d_turns_fab_other_matches"], stats_all.get("d_turns_fab", 0)
+        w(f"Note, 19 Nov 2026: P10 and P12 keep their scores as measured, but {k} of their {n_fab} turns are a known false positive of the audit context. "
+          "In those turns the first draft's only `fabricated` claim names a firm that `lookup_firm` listed under `other_matches` "
+          "(for example \"The name also matches another firm, Tessaly Growth.\"), and the audit context of this run did not pass `other_matches` to the auditor, "
+          "so the true claim had no evidence. The repair round of each of those turns repaired a draft whose only flagged claim was true. The audit context now passes it; "
+          "this run was not repeated. See the corrected rate below.")
+        w("")
 
     w("## The fact-checker and the repair loop (pierre's own numbers)")
     w("")
@@ -466,11 +484,17 @@ def render(data_dir: Path, cases_path: Path, wilco_sha: str) -> str:
         w(f"The share of first-draft claims the auditor called `fabricated`: **{d_fab} of {d_claims} ({100 * obs:.1f}%)**, Wilson 95% {100 * wilson(d_fab, d_claims)[0]:.1f}% to {100 * wilson(d_fab, d_claims)[1]:.1f}% (claims within one answer are not independent, so read that as narrower than it is).")
         w("")
         w("Correcting for the auditor's own errors with the 57-claim calibration (observed = true x recall + (1 - true) x false-positive rate):")
-        w(f"- point (recall 19 of 19, false positives 0 of 38): true rate about **{100 * point:.1f}%**")
+        known = stats_all.get("d_fab_other_matches", 0)
+        w(f"- point (recall 19 of 19, false positives 0 of 38): true rate about **{100 * point:.1f}%**" + (" if every flag were real; see the note below" if known else ""))
         w(f"- upper (the worst capture's recall 17 of 19): up to about **{100 * hi:.1f}%**")
         w(f"- lower (false positives at the rule-of-three ceiling of {100 * AUDITOR_FP_CEILING:.1f}%): down to about **{100 * lo:.1f}%**")
         w("")
         w("This is a bound built from a 57-claim, author-labelled set on a different kind of context (single-firm report contexts, not tool-result contexts). It is an imperfect judge's rate with its calibration slack, not a measurement of how often the agent invents facts.")
+        if known:
+            w("")
+            w(f"Note, 19 Nov 2026: {known} of the {d_fab} flagged claims are a known false positive of the audit context (`other_matches` of `lookup_firm` did not reach the auditor; see the note under the predictions table). "
+              f"The calibration above did not cover that cause, so the corrections read all {d_fab} flags as real, and about {100 * point:.1f}% is an upper bound, not a true rate. "
+              f"Without them, {d_fab - known} of {d_claims} first-draft claims stays flagged, so at most {d_fab - known} of {d_claims} is a fabrication the auditor caught.")
     else:
         w("No audited claims, so no rate.")
     w("")

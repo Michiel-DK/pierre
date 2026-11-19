@@ -98,3 +98,29 @@ def test_a_turn_with_only_recent_deals_is_still_audited():
 
     calls, results = _run([{"tool": "find_recent_investments", "args": {}}])
     assert not _is_context_empty(_summarize_context_for_prompt(audit_context_from_turn(calls, results)))
+
+
+def test_the_auditor_sees_the_other_firms_a_name_lookup_matched():
+    # lookup_firm("Tessaly") matches two firms; the agent's tool result lists the second under other_matches,
+    # so a true "the name also matches Tessaly Growth" must have evidence in the audit context.
+    calls, results = _run([{"tool": "lookup_firm", "args": {"firm_name": "Tessaly"}}])
+    assert results[0]["other_matches"] == ["Tessaly Growth"]
+    ctx = audit_context_from_turn(calls, results)
+    assert "Tessaly Growth" in json.dumps(ctx)
+    assert ctx["firm_profiles"][0]["other_matches"] == ["Tessaly Growth"]
+
+
+def test_an_empty_other_matches_adds_no_key_to_the_audit_context():
+    # The recorded sessions all have other_matches == [] and replay by request hash, so an empty list must not
+    # change the auditor's request.
+    calls, results = _run([{"tool": "lookup_firm", "args": {"firm_name": "Quillmoor"}}])
+    assert results[0]["other_matches"] == []
+    assert "other_matches" not in audit_context_from_turn(calls, results)["firm_profiles"][0]
+
+
+def test_the_auditor_sees_the_geographies_compare_firms_showed():
+    calls, results = _run([{"tool": "compare_firms", "args": {"firm_ids": ["quillmoor-capital", "brask-ventures"]}}])
+    shown = {f["firm_name"]: f["geographies"] for f in results[0]["firms"] if f["geographies"]}
+    assert shown
+    kept = {p["firm_name"]: p.get("geographies") for p in audit_context_from_turn(calls, results)["firm_profiles"]}
+    assert all(kept[name] == geos for name, geos in shown.items())

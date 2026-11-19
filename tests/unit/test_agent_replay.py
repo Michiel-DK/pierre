@@ -87,10 +87,10 @@ def test_budget_counts_retries(tmp_path):
         def create(self, **kw):
             self.n += 1
             if self.n == 1:
-                raise TimeoutError("t")
+                raise ConnectionError("t")  # a timeout is not retried (test_agent_timeouts.py)
             return message([text("x")])
 
     spy = Flaky()
-    c = BudgetedClient(spy, tmp_path / "l.json", 5, 10**9, sleep=lambda s: None, retryable=(TimeoutError,))
+    c = BudgetedClient(spy, tmp_path / "l.json", 5, 10**9, sleep=lambda s: None, retryable=(ConnectionError,))
     c.create(model="m", messages=[])
     assert json.loads((tmp_path / "l.json").read_text())["calls"] == 2

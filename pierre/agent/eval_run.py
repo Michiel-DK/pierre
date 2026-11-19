@@ -67,12 +67,18 @@ def is_complete(path: Path, n_turns: int) -> bool:
     return len(lines) == n_turns and json.loads(lines[-1]).get("turn") == n_turns - 1
 
 
-def run_session(client: Any, case: Dict[str, Any], s: Session, traces_dir: Path, split: str | None = None) -> List[TurnResult]:
+def run_session(
+    client: Any, case: Dict[str, Any], s: Session, traces_dir: Path, split: str | None = None, live: bool = False
+) -> List[TurnResult]:
     """One session to its own trace file. Any non-budget exception becomes a crash termination on the turn it hit
-    and on every later turn, so the file is never short."""
+    and on every later turn, so the file is never short. ``live`` (a run against the real API) adds wall-clock
+    latency to each turn's meta."""
     path = s.path(traces_dir)
-    writer = TraceWriter(path, s.sid, s.case_id, split=case.get("split", split), repeat=s.repeat, runtime=runtime_stamp(s.model))
+    writer = TraceWriter(
+        path, s.sid, s.case_id, split=case.get("split", split), repeat=s.repeat, runtime=runtime_stamp(s.model), live=live
+    )
     session = new_session(client, model=s.model)
+    session.conversation_id = s.sid
     inputs = case_inputs(case)
     results: List[TurnResult] = []
     crashed: str | None = None
@@ -101,12 +107,13 @@ def run_all(
     traces_dir: Path,
     workers: int = 3,
     on_done: Callable[[Session, List[TurnResult]], None] | None = None,
+    live: bool = False,
 ) -> Dict[str, int]:
     todo = [s for s in sessions if not is_complete(s.path(traces_dir), len(case_inputs(cases[s.case_id])))]
     skipped = len(sessions) - len(todo)
 
     def one(s: Session) -> Tuple[Session, List[TurnResult]]:
-        res = run_session(client, cases[s.case_id], s, traces_dir)
+        res = run_session(client, cases[s.case_id], s, traces_dir, live=live)
         if on_done:
             on_done(s, res)
         return s, res

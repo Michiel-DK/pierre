@@ -9,6 +9,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
+from pierre.agent import obs, timeouts
+
 MAX_TOOL_ITERATIONS = 8
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_EFFORT = "medium"
@@ -31,6 +33,7 @@ class LoopConfig:
     effort: str = DEFAULT_EFFORT
     max_tokens: int = DEFAULT_MAX_TOKENS
     max_iterations: int = MAX_TOOL_ITERATIONS
+    model_timeout_s: Optional[float] = timeouts.MODEL_TIMEOUT_S  # wall clock per model call; None = no deadline
 
 
 @dataclass
@@ -46,6 +49,7 @@ class LoopResult:
     stop_reasons: List[str] = field(default_factory=list)
     usage: List[Dict[str, Any]] = field(default_factory=list)
     model: str = ""
+    latency_ms: List[float] = field(default_factory=list)  # wall clock per model call
 
 
 def as_dict(response: Any) -> Dict[str, Any]:
@@ -109,7 +113,24 @@ def run_loop(
     cap = max_iterations or cfg.max_iterations
     out = LoopResult()
     for _ in range(cap):
-        response = as_dict(client.messages.create(**request_kwargs(cfg, messages)))
+        with obs.span(f"chat {cfg.model}", obs.chat_request_attributes(cfg.model, cfg.max_tokens)) as sp:
+            start = obs.monotonic()
+            try:
+                ctx = obs.capture()  # the call may run on a deadline thread, which does not inherit the span context
+                response = as_dict(
+                    timeouts.call_with_deadline(
+                        obs.run_in, cfg.model_timeout_s, ctx, client.messages.create, **request_kwargs(cfg, messages)
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001 - only timeouts end the turn; anything else propagates unchanged
+                if not timeouts.is_timeout(exc):
+                    raise
+                sp.error("timeout")
+                out.termination = "timeout"
+                return out
+            finally:
+                out.latency_ms.append(obs.elapsed_ms(start))
+            sp.update(obs.chat_response_attributes(response))
         out.steps += 1
         stop = response.get("stop_reason")
         out.stop_reasons.append(str(stop))
@@ -129,7 +150,12 @@ def run_loop(
             out.text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
             return out
 
-        results = dispatcher.execute_parallel([(b["name"], dict(b.get("input") or {})) for b in uses])
+        try:
+            results = dispatcher.execute_parallel([(b["name"], dict(b.get("input") or {})) for b in uses])
+        except timeouts.DeadlineExceeded:
+            out.termination = "timeout"
+            _close_unanswered(messages, content)
+            return out
         out.tool_calls.extend({"tool": b["name"], "args": b.get("input") or {}} for b in uses)
         out.tool_results.extend(results)
         # All results of one response go back in ONE user message, in call order.

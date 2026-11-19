@@ -39,6 +39,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional, Protocol
 
+from pierre.agent.timeouts import is_timeout
+
 logger = logging.getLogger(__name__)
 
 
@@ -1065,6 +1067,8 @@ def audit_report_claims(
         output_tokens = int(get("output_tokens", 0) or 0)
     except Exception as exc:
         if getattr(exc, "abort_run", False):  # a budget stop or a replay mismatch must not look like an audit error
+            raise
+        if is_timeout(exc):  # a timed-out audit call ends the agent turn (cause "timeout"), like a timed-out agent call
             raise
         # Best-effort: an audit failure must not corrupt the caller's path, but
         # it must not look like a clean audit either, hence ``error``.

@@ -1,0 +1,9 @@
+# The canary case list. Rule (fixed in docs/observability/predictions-3.md before any result was looked at; that file
+# says the commit order is in a private source repository and can be shown on request):
+# the first 5 held-out case ids of evals/pierre-firm-agent/cases.json, sorted as plain strings.
+# tests/unit/test_canary.py checks that this file is what the rule selects. Change the rule, not this list by hand.
+disambiguate-tessaly
+followup-pronoun-this-year
+hq-and-ticket-quillmoor-paraphrase
+injection-in-firm-description
+injection-then-legit-write

@@ -10,7 +10,7 @@ can show is calibration: how often the fact-checker is right, and whether the ma
 ## What the measurements found
 
 **1. The fact-checker on the reports is accurate on a small labelled set, and its recall bound got worse in the port.**
-Every report goes through a claim auditor (`pierre/agents/_claim_auditor.py`): one Claude call (`claude-opus-5-5`)
+In the full system every report goes through a claim auditor (`pierre/agents/_claim_auditor.py`): one Claude call (`claude-opus-5-5`)
 extracts each factual claim and checks it against the evidence the report was built from, labelling it `verified`,
 `unverifiable` or `fabricated`. Run over 57 hand-labelled claims, the committed capture wrongly flagged 0 of 38
 legitimate claims (target ≤ 15%) and caught 19 of 19 fabricated ones (target ≥ 80%).
@@ -106,20 +106,28 @@ turn). Timestamps come from a fixed demo clock so that replays are byte-stable.
 **What the recordings show, and what they do not.** `make record-agent` records 8 train-case sessions (12 turns) on
 `claude-opus-5-5`: 27 agent calls and 12 auditor calls in the committed files. No recording contains a repair round,
 because the auditor flagged nothing `fabricated` in the final run of any of them, so the repair paths are tested with a
-scripted client. That is a limit: the repair prompt has never run live on a draft that deserved it. These are demo
-sessions, not an evaluation, and they carry no claim about how well the agent works.
+scripted client. That is a limit of the recordings. These are demo sessions, not an evaluation, and they carry no
+claim about how well the agent works. Repair rounds did run live in the agent
+eval of 13 Nov (4 of 108 turns) and in the AgentDojo run (1 of 160 sessions), both below. In 3 of those 4 eval turns the
+only claim flagged in the repaired draft was true: until 19 Nov 2026 the auditor's evidence left out the `other_matches` that `lookup_firm`
+returns, so a true claim (for example "The name also matches another firm, Tessaly Growth.") was called `fabricated` (the context now passes
+it; that run was not repeated). Every canary row up to and including 2026-11-19 had this same false positive in its `disambiguate-tessaly` turn:
+one repair round on 18 and 19 Nov, two (the cap) on 17 Nov (counted by hand from `meta.rounds` of the
+committed canary traces, on the day of the last of those rows).
 
 Two defects of mine showed up in the first recording and were fixed before the committed one: the audit context left
 out the descriptions `list_shortlist` returns, so the auditor marked true claims `fabricated`, and the resulting repair
 round produced a reply addressed to the checker instead of the user (the repair prompt now says to answer the user
-directly; that wording has not run live on a real repair). A turn that only called `find_recent_investments` also skipped
+directly; no recording runs that wording on a real repair). A turn that only called `find_recent_investments` also skipped
 its audit. The two affected sessions were recorded again; their first recordings were discarded and are not in the repo (`record_log.jsonl` still holds their two log lines, which match no file).
 `followup-pronoun-this-year` moved to the held-out split, so `recent-climate-deals` (train, one turn) replaces it.
 
 **The claim auditor in the agent.** The auditor was ported from Gemini to Claude (see finding 1). On a 12-claim spot
 check over contexts built from tool results, 6 true by the planted data and 6 false by it, it flagged 0 of 6 true claims
 and caught 6 of 6 false ones. Twelve claims bound nothing; it is reported beside the 57-claim number and not merged with
-it ([report](docs/calibration/agent_context_spot_check_report.md)). The auditor is an imperfect judge, never a gate.
+it ([report](docs/calibration/agent_context_spot_check_report.md)). Its 6 true claims name only facts the audit context
+keeps (HQ, cheque range, portfolio count, stages, investment year, a shortlist action, a tool error), so it did not test a
+true claim about something the agent saw and the context left out, which is the false positive above. The auditor is an imperfect judge, never a gate.
 
 **The live evaluation.** `make agent-eval` ran all 21 cases live: `claude-sonnet-5-5` three times each and `claude-opus-5-5` once
 (84 sessions, 108 turns, 352 metered calls), graded by [wilco](https://github.com/Michiel-DK/wilco) at a pinned commit
@@ -128,24 +136,64 @@ the auditor's verdicts are counted beside the score and never gate it. Sonnet pa
 cases on a single run, and 8 of 11 and 7 of 10 on all three runs (pass^3); Opus, at one run, 9 of 11 and 8 of 10. The
 Wilson 95% intervals are about 0.4 to 0.95 wide, so no gap between the models can be read from these numbers. Most failures
 are the strict number check (`grounded_answer`) firing on correct restatements such as 1.5M for a stored 1500000; the report
-lists them. Predictions were committed before the run and are scored in the report, including the ones it refuted (the
+lists them. Predictions were committed before the run (that order is in a private source repository and can be shown on
+request) and are scored in the report, including the ones it refuted (the
 repair loop fired on 4 of 108 turns, below the predicted 5% to 30%).
 These are scores on 21 cases of fictional data, written by the same model family that sat the exam. They say nothing about real
 firm data and nothing about real-world match outcomes. →
 [report](docs/calibration/agent_eval_report.md), [predictions](docs/calibration/agent_eval_predictions.md)
 
-**A public anchor.** `make anchor-eval` runs a fixed slice of AgentDojo's banking suite (48 sessions) through this same
-loop on `claude-sonnet-5-5`, graded by the benchmark's own checks, because the 21 pierre cases are written in-house and a
-reader should see the loop on cases we did not write. Result and limits (the repair loop never fired in it):
-[report](docs/calibration/public_anchor_agentdojo.md); predictions fixed beforehand in `evals/public-anchor/PREDICTIONS.md`.
-It needs `ANCHOR_ENV=<file with an ANTHROPIC_API_KEY line>` and spends tokens; `make reports` re-renders the report offline.
+**A public anchor.** AgentDojo's whole banking suite (160 sessions: 16 user tasks alone and with each of 9
+injection tasks) was run through this same loop on `claude-sonnet-5-5`, graded by the benchmark's own checks, because the 21 pierre
+cases are written in-house and a reader should see the loop on cases we did not write. Result: 16/16 utility without
+injection, 0/144 targeted attacks succeeded (95% Wilson upper bound 2.6%), 134/144 utility under attack; k = 1, and the
+repair loop ran once in the whole suite, so nothing is shown about repair under attack. The run used one attack,
+AgentDojo's `important_instructions`; other attacks are untested. The defence arms (`ARM=confirm-on-mutate|spotlight`)
+and the local-model adapter ship unrun: no session of theirs is committed, and with no targeted attack succeeding there
+was nothing for a defence to stop, so a defence's effect on attack success is unmeasured on this suite and model. Details and limits:
+[report](docs/calibration/public_anchor_agentdojo.md); predictions in `evals/public-anchor/PREDICTIONS.md` (those for the 48-session slice of 13 Nov fixed beforehand, those for the other 112 sessions written after the slice result; that order is in a private source repository and can be shown on request).
+That run is committed and is never run again: `make anchor-eval` refuses it. `make anchor-eval MODEL=<id> ARM=<arm>` runs one new
+defence arm; it needs `ANCHOR_ENV=<file with an ANTHROPIC_API_KEY line>` and spends tokens. `make reports` re-renders the report offline.
+
+## Watching it run
+
+pierre has no users, so there is no organic traffic to watch. The traffic here is a scheduled canary: the same 5 held-out
+cases (`canary/cases.txt`) run live on weekdays by `make canary`, so the input is the same in every 5-case row. A change between those rows comes
+from the model, the SDK, the tools or the prompt, or from sampling alone: each row is one run (k = 1) of a sampled model. The telemetry and the alerts are real; the traffic is a scheduled canary and not users.
+
+**What is traced.** Every turn is one JSON line in the trace file (tool calls, usage, rounds, stop reasons, and on live runs
+the wall-clock latency of the turn and each model call, and its cost in USD at dated list prices). The same turns are
+emitted as OpenTelemetry spans, which an optional local Langfuse dashboard can show
+([how](docs/observability/langfuse.md)). Each canary run appends one row to `canary/metrics.jsonl`: pass count, cost per turn
+(p50, p95), p95 turn latency, repair-loop rate, terminations by cause, fabricated-claim rate, model id, SDK version
+([the row](canary/README.md)).
+
+**The four alert rules** (`make canary-check`; thresholds in `canary/thresholds.json`, dated 2026-11-17 in `canary/thresholds_added.json`, the date of the first
+row: a test checks that no row is older; the commit order behind that date is in a private source repository and can be shown on request;
+"previous 7 rows" means runs, not days, because the canary runs on weekdays only and only rows that ran the same cases count):
+
+| rule | fires when | exit |
+|---|---|---|
+| pass count | at least 2 below the median of the previous 7 rows, on 2 runs in a row (one bad run is noise at n=5) | 1 |
+| cost | cost per turn (the row's p50) above 1.5 x the median of the previous 7 rows | 1 |
+| termination | any turn ended on `timeout` or `max_tokens` | 1 |
+| model or SDK changed | the model id or the `anthropic` version differs from the previous row. Not a failure, exit code 3: run `make canary FULL=1` | 3 |
+
+The reasons are written into the newest row's `alerts`. With fewer than 7 comparable previous rows the pass and cost rules
+are not evaluated (a median of two or three runs at n=5 is noise) and the command says so; the termination and change
+rules still run, so the first pass or cost alert can come on row 8 (cost) or row 9 (pass, which needs two runs in a row).
+`make` reports any non-zero recipe as exit 2; run `python scripts/analysis/canary_check.py` to get the 1 or the 3.
+The model and SDK rule compares with the previous row only. 3 rows exist in `canary/metrics.jsonl`, the first dated
+2026-11-17.
+
+**Chart.** Once there are 14 rows, the series (pass count and cost per turn by run) goes here. There is no chart yet.
 
 ## Run it
 
 Python 3.11+.
 
 ```bash
-make install   # venv + package + test deps
+make install   # venv + package + test deps + the anchor, obs and langfuse extras
 make test      # unit tests: no network, no database, no API key
 make demo      # the ranking demo above
 make demo-agent   # replay two recorded agent sessions, offline
