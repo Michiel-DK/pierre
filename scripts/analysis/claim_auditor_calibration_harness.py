@@ -256,7 +256,7 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
         "structured evidence it was given, and labels each claim "
         "`verified` / `unverifiable` / `fabricated`. By default a `fabricated` claim is "
         "tagged `(fabricated)` and an `unverifiable` one `(unverified)` in the text; "
-        "a stricter setting removes fabricated claims. This harness runs a **fixed, hand-labeled set of test claims** "
+        "a stricter setting removes fabricated claims. This harness runs a **fixed set of test claims, written and labeled by Claude (not by hand)** "
         "through that auditor and scores how often it gets them right — the "
         "**groundedness calibration** of the engine."
     )
@@ -281,7 +281,7 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
         f"| **Fabricated recall** | **{_fmt(recall, pct=True)}** | ≥ {_fmt(recall_floor, pct=True)} | "
         f"share of real fabrications correctly caught |"
     )
-    lines.append(f"| Test claims | {n} | — | hand-labeled fixtures |")
+    lines.append(f"| Test claims | {n} | — | fixtures written and labeled by Claude |")
     lines.append("")
     lines.append(
         "> **Read this as a baseline, not a green-light.** The target threshold is "
@@ -335,7 +335,7 @@ def render_markdown(report: dict, *, captured_at: str | None = None) -> str:
     lines.append("## Confusion matrix")
     lines.append("")
     lines.append(
-        "Rows = the hand-assigned ground-truth label; columns = what the auditor "
+        "Rows = the ground-truth label (assigned by Claude, not by hand); columns = what the auditor "
         "actually decided. The diagonal-ish ideal: `verified`→verified, "
         "`fair_inference`→unverifiable (or verified — both survive), "
         "`fabricated`→fabricated."

@@ -12,9 +12,10 @@ can show is calibration: how often the fact-checker is right, and whether the ma
 **1. The fact-checker on the reports is accurate on a small labelled set, and its recall bound got worse in the port.**
 In the full system every report goes through a claim auditor (`pierre/agents/_claim_auditor.py`): one Claude call (`claude-opus-5-5`)
 extracts each factual claim and checks it against the evidence the report was built from, labelling it `verified`,
-`unverifiable` or `fabricated`. Run over 57 hand-labelled claims, the committed capture wrongly flagged 0 of 38
-legitimate claims (target ≤ 15%) and caught 19 of 19 fabricated ones (target ≥ 80%).
-The set is small and I wrote it myself. Zero false positives at that size still allow a true false-positive rate up to
+`unverifiable` or `fabricated`. Run over 57 claims written and labelled by Claude, not by hand, the committed capture
+wrongly flagged 0 of 38 legitimate claims (target ≤ 15%) and caught 19 of 19 fabricated ones (target ≥ 80%).
+The set is small, and its labels come from the same model family as the auditor under test: weaker evidence than a
+human-labelled set. Zero false positives at that size still allow a true false-positive rate up to
 ~8%. The recall bound is weaker than before the port: the auditor used to run on Gemini Flash (19 of 19, one capture).
 Re-running the port on the same fixtures twice gave 17 of 19 and then 19 of 19, so one capture is not a bound. The worse
 capture allows a true recall as low as ~69% (Wilson, 95%), against ~84% for the old single capture. In each capture
